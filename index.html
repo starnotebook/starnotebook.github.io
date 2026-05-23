@@ -16,7 +16,7 @@
   // Register an inline service worker and manifest when running as installed PWA
   if ('serviceWorker' in navigator) {
     const manifest = {
-      name: 'Star notebook',
+      name: 'Starnotebook',
       short_name: 'Starnotebook',
       start_url: location.href,
       display: 'standalone',
@@ -684,8 +684,6 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
     <div class="tb-sep"></div>
     <button class="tb" id="btn-notename" title="Switch note (Ctrl+P)">scratch</button>
     <div class="tb-sep"></div>
-    <button class="tb" id="btn-newnote" title="New note (Ctrl+N)">+ Note</button>
-    <button class="tb" id="btn-newblk" title="Add block (Ctrl+Enter)">+ Block</button>
     <div class="tb-gap"></div>
     <button class="tb" id="btn-pal" title="Command palette (Ctrl+P)">⌘</button>
     <div class="tb-sep"></div>
@@ -948,7 +946,7 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
 // ════════════════════════════
 // DATA
 // ════════════════════════════
-const SK_N='edna3_notes', SK_C='edna3_cfg';
+const SK_N='edna3_notes', SK_C='edna3_cfg', SK_CUR='edna3_cur';
 
 const DK=[
   {id:'dark',        n:'VS Dark',     sw:['#1e1e1e','#569cd6','#4ec9b0','#dcdcaa']},
@@ -1025,6 +1023,11 @@ function loadNav() {
 }
 function saveNav() {
   try { localStorage.setItem(SK_NB, JSON.stringify({notebooks, sections})); } catch(_){}
+  // Also flush notes immediately so nbId/secId/pgId assignments don't get lost on refresh
+  try {
+    if(disk.mode!=='disk') localStorage.setItem(SK_N, JSON.stringify(notes));
+    if(curId) localStorage.setItem(SK_CUR, curId); else localStorage.removeItem(SK_CUR);
+  } catch(_){}
 }
 
 function mkNbId() { return 'nb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
@@ -1791,16 +1794,23 @@ let palSel=0, lmTarget=null;
 function load(){
   try{const r=localStorage.getItem(SK_N);if(r)notes=JSON.parse(r);}catch(_){}
   try{const r=localStorage.getItem(SK_C);if(r)cfg={...DC,...JSON.parse(r)};}catch(_){}
+  try{const r=localStorage.getItem(SK_CUR);if(r)curId=r;}catch(_){}
 }
 function saveNotes(){
   if(disk.mode==='disk'&&disk.dir) saveDisk().catch(console.error);
   else try{localStorage.setItem(SK_N,JSON.stringify(notes));}catch(_){}
+  // always persist curId and nav state regardless of storage mode
+  try{if(curId)localStorage.setItem(SK_CUR,curId);else localStorage.removeItem(SK_CUR);}catch(_){}
 }
 function saveCfg(){try{localStorage.setItem(SK_C,JSON.stringify(cfg));}catch(_){}}
 function sched(){
   clearTimeout(svTimer);
   q('sb-sv').textContent='saving…';
-  svTimer=setTimeout(()=>{saveNotes();q('sb-sv').textContent='saved';},400);
+  svTimer=setTimeout(()=>{
+    saveNotes();
+    try{if(curId)localStorage.setItem(SK_CUR,curId);else localStorage.removeItem(SK_CUR);}catch(_){}
+    q('sb-sv').textContent='saved';
+  },400);
 }
 
 // ════════════════════════════
@@ -1828,7 +1838,10 @@ function delNote(id){
   const n=notes[id];
   if(n&&disk.mode==='disk'&&disk.dir) diskDel(n);
   delete notes[id];
-  if(curId===id) curId=Object.keys(notes)[0]||null;
+  if(curId===id){
+    curId=Object.keys(notes)[0]||null;
+    try{if(curId)localStorage.setItem(SK_CUR,curId);else localStorage.removeItem(SK_CUR);}catch(_){}
+  }
 }
 function mkBlk(t){return{id:mkBid(),type:t||'text',content:''};}
 
@@ -2142,6 +2155,8 @@ window.G={
 // RENDER NOTE
 // ════════════════════════════
 function renderNote(){
+  // persist which note is open
+  try{if(curId)localStorage.setItem(SK_CUR,curId);else localStorage.removeItem(SK_CUR);}catch(_){}
   const ec=q('ec'); ec.innerHTML='';
   if(!curId||!notes[curId]){
     ec.innerHTML=`<div id="es"><div class="es-t">⭐ Starnotebook</div><div class="es-s">Note taking with super powers</div><div class="es-h"><div class="es-hi"><span class="kbd">Ctrl+N</span> New note</div><div class="es-hi"><span class="kbd">Ctrl+P</span> Command palette</div><div class="es-hi"><span class="kbd">Ctrl+Enter</span> New block</div></div></div>`;
