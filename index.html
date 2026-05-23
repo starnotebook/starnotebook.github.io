@@ -2,7 +2,11 @@
 <html lang="en" data-theme="dark" data-font="jetbrains">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.webmanifest">
+
 <title>Starnotebook — Note taking with super powers</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Fira+Code:wght@300;400;500&family=Source+Code+Pro:wght@300;400;500&family=IBM+Plex+Mono:wght@300;400;500&family=Inconsolata:wght@300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -598,8 +602,6 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
     <div class="tb-sep"></div>
     <button class="tb" id="btn-notename" title="Switch note (Ctrl+P)">scratch</button>
     <div class="tb-sep"></div>
-    <button class="tb" id="btn-newnote" title="New note (Ctrl+N)">+ Note</button>
-    <button class="tb" id="btn-newblk" title="Add block (Ctrl+Enter)">+ Block</button>
     <div class="tb-gap"></div>
     <button class="tb" id="btn-pal" title="Command palette (Ctrl+P)">⌘</button>
     <div class="tb-sep"></div>
@@ -1532,7 +1534,7 @@ window.openCatPopNew  = openCatPopNew;
 function showPgCtx(e, pgId) {
   const n = notes[pgId]; if (!n) return;
   const isSubPage = !!n.pgId;
-  m = q('ctx');
+  const m = q('ctx');
   m.innerHTML = `
     <div class="ci" onclick="curId='${pgId}';renderNote();renderNav('');closeCtx()"><span class="ci-i">↗</span>Open</div>
     <div class="ci" onclick="navRen('${pgId}','pg');closeCtx()"><span class="ci-i">✎</span>Rename</div>
@@ -2264,16 +2266,37 @@ window.gToggleLn=function(){
 // NOTE RENAME / DELETE
 // ════════════════════════════
 function renNote(id){
+  // Use inline nav rename if the page is visible in the sidebar
+  const nameEl = document.querySelector(`.pg[data-pgid="${id}"] .pg-name`)
+               || document.querySelector(`.subpg[data-pgid="${id}"] .subpg-name`);
+  if (nameEl) { startNavRename(id, 'pg'); return; }
+  // Fallback: prompt (for unsorted notes not in nav)
   const n=notes[id];if(!n)return;
   const nv=prompt('Rename note:',n.name);
   if(nv&&nv.trim()){n.name=nv.trim();n.updated=Date.now();sched();
     if(curId===id){q('btn-notename').textContent=n.name;q('sb-note').textContent='📝 '+n.name;}
+    renderNav(q('nav-search').value);
   }
 }
 function doDelNote(id){
   const n=notes[id];if(!n)return;
-  if(!confirm(`Delete "${n.name}"?`))return;
-  delNote(id);sched();renderNote();toast('Note deleted');
+  const subs=subPages(id);
+  showConfirm({
+    icon:'📄',
+    title:`Delete "${n.name}"?`,
+    body: subs.length
+      ? `This page has <strong>${subs.length} sub-page${subs.length!==1?'s':''}</strong> that will also be deleted.<br><br>This cannot be undone.`
+      : 'This page will be permanently deleted. This cannot be undone.',
+    okLabel:'Delete Page',
+    onOk:()=>{
+      subs.forEach(s=>delNote(s.id));
+      delNote(id);
+      sched();
+      renderNav(q('nav-search').value);
+      renderNote();
+      toast('Page deleted');
+    }
+  });
 }
 
 // ════════════════════════════
@@ -2423,6 +2446,7 @@ async function diskMove(existing) {
     notes = { ...existing };
     await saveDisk();
     await idbSaveHandle(dir);
+    localStorage.setItem('edna3_disk_mode', 'disk');
     localStorage.removeItem(SK_N);
     updateSB(); buildSetUI();
     toast('Moved to disk (' + Object.keys(notes).length + ' notes) — reloads will reconnect automatically', 'ok');
@@ -2436,36 +2460,57 @@ async function diskSwitch() {
     const dir = await window.showDirectoryPicker({ mode:'readwrite' });
     disk = { mode:'disk', dir };
     await idbSaveHandle(dir);
+    localStorage.setItem('edna3_disk_mode', 'disk');
     const loaded = await loadDisk(dir);
     if (!Object.keys(loaded).length) { const n=mkNote('scratch'); loaded[n.id]=n; }
     notes = loaded;
     curId = Object.keys(notes)[0] || null;
     await saveDisk();
     localStorage.removeItem(SK_N);
-    updateSB(); buildSetUI(); renderNote();
+    updateSB(); buildSetUI(); renderNote(); renderNav('');
     toast('Switched directory (' + Object.keys(notes).length + ' notes) — reloads will reconnect automatically', 'ok');
   } catch(e) { if (e.name!=='AbortError') toast('Failed: '+e.message, 'err'); }
 }
 
 function diskBrowser() {
-  if (!confirm('Switch to browser storage?\nNotes on disk stay intact.')) return;
-  disk = { mode:'browser', dir:null };
-  idbClearHandle();
-  try { const r=localStorage.getItem(SK_N); if(r) notes=JSON.parse(r); } catch(_) { notes={}; }
-  if (!notes[curId]) curId = Object.keys(notes)[0] || null;
-  updateSB(); buildSetUI(); renderNote();
-  toast('Switched to browser storage');
+  showConfirm({
+    icon: '💾',
+    title: 'Switch to browser storage?',
+    body: 'Your notes on disk will stay intact. The app will use browser localStorage going forward.',
+    okLabel: 'Switch to Browser',
+    okDanger: false,
+    onOk: () => {
+      disk = { mode:'browser', dir:null };
+      idbClearHandle();
+      localStorage.removeItem('edna3_disk_mode');
+      try { const r=localStorage.getItem(SK_N); if(r) notes=JSON.parse(r); } catch(_) { notes={}; }
+      if (!notes[curId]) curId = Object.keys(notes)[0] || null;
+      updateSB(); buildSetUI(); renderNote();
+      toast('Switched to browser storage');
+    }
+  });
 }
 
 // ════════════════════════════
 // DISK RECONNECT BANNER
 // ════════════════════════════
+function _diskBannerDismiss() {
+  const banner = q('disk-banner');
+  banner.style.display = 'none';
+  idbClearHandle();
+  localStorage.removeItem('edna3_disk_mode');
+  disk = { mode:'browser', dir:null };
+  updateSB(); buildSetUI();
+  toast('Staying on browser storage');
+}
+
 function showDiskBanner(handle) {
-  const banner  = q('disk-banner');
-  const msg     = q('disk-banner-msg');
-  const grantBtn= q('disk-banner-grant');
+  const banner     = q('disk-banner');
+  const msg        = q('disk-banner-msg');
+  const grantBtn   = q('disk-banner-grant');
   const dismissBtn = q('disk-banner-dismiss');
 
+  grantBtn.textContent = 'Grant Access';
   msg.textContent = 'Your notes are stored on disk. Click "Grant Access" to reconnect.';
   banner.style.display = 'flex';
 
@@ -2474,6 +2519,7 @@ function showDiskBanner(handle) {
       const perm = await handle.requestPermission({ mode:'readwrite' });
       if (perm === 'granted') {
         disk = { mode:'disk', dir:handle };
+        localStorage.setItem('edna3_disk_mode', 'disk');
         const loaded = await loadDisk(handle);
         if (Object.keys(loaded).length) {
           notes = loaded;
@@ -2487,6 +2533,7 @@ function showDiskBanner(handle) {
         msg.textContent = 'Permission denied — using browser storage instead.';
         setTimeout(() => { banner.style.display='none'; }, 3000);
         await idbClearHandle();
+        localStorage.removeItem('edna3_disk_mode');
       }
     } catch(e) {
       msg.textContent = 'Could not reconnect: ' + e.message;
@@ -2494,13 +2541,44 @@ function showDiskBanner(handle) {
     }
   };
 
-  dismissBtn.onclick = async () => {
-    banner.style.display = 'none';
-    await idbClearHandle();
-    disk = { mode:'browser', dir:null };
-    updateSB(); buildSetUI();
-    toast('Staying on browser storage');
+  dismissBtn.onclick = _diskBannerDismiss;
+}
+
+// Shown when localStorage says disk mode but the IDB handle is missing (e.g. private browsing session)
+function showDiskBannerNoPick() {
+  const banner     = q('disk-banner');
+  const msg        = q('disk-banner-msg');
+  const grantBtn   = q('disk-banner-grant');
+  const dismissBtn = q('disk-banner-dismiss');
+
+  grantBtn.textContent = 'Choose Folder';
+  msg.textContent = 'You were using disk storage. Click "Choose Folder" to reconnect.';
+  banner.style.display = 'flex';
+
+  grantBtn.onclick = async () => {
+    try {
+      const dir = await window.showDirectoryPicker({ mode:'readwrite' });
+      disk = { mode:'disk', dir };
+      await idbSaveHandle(dir);
+      localStorage.setItem('edna3_disk_mode', 'disk');
+      const loaded = await loadDisk(dir);
+      if (Object.keys(loaded).length) {
+        notes = loaded;
+        curId = notes[curId] ? curId : Object.keys(notes)[0] || null;
+      }
+      localStorage.removeItem(SK_N);
+      banner.style.display = 'none';
+      updateSB(); buildSetUI(); renderNote(); renderNav('');
+      toast('Reconnected to disk folder ✓', 'ok');
+    } catch(e) {
+      if (e.name !== 'AbortError') {
+        msg.textContent = 'Could not open folder: ' + e.message;
+        setTimeout(() => { banner.style.display='none'; }, 3000);
+      }
+    }
   };
+
+  dismissBtn.onclick = _diskBannerDismiss;
 }
 
 // ════════════════════════════
@@ -2569,6 +2647,7 @@ async function init(){
   rs.setProperty('--ets',String(cfg.ts));
 
   // ── Restore disk directory handle from IndexedDB ──
+  const wasDiskMode = localStorage.getItem('edna3_disk_mode') === 'disk';
   const savedHandle = await idbLoadHandle();
   if (savedHandle) {
     try {
@@ -2588,7 +2667,11 @@ async function init(){
     } catch(_) {
       // Handle is stale or inaccessible — clear it
       await idbClearHandle();
+      localStorage.removeItem('edna3_disk_mode');
     }
+  } else if (wasDiskMode) {
+    // localStorage says we were in disk mode but handle is gone — show banner with a prompt to re-pick
+    showDiskBannerNoPick();
   }
 
   // ── bootstrap default content ──
@@ -2726,9 +2809,16 @@ async function init(){
     r.readAsText(e.target.files[0]);e.target.value='';
   });
   q('btn-nuke').addEventListener('click',()=>{
-    if(!confirm('Delete ALL notes and notebooks? Cannot be undone.'))return;
-    notes={};notebooks=[];sections=[];curId=null;
-    saveNotes();saveNav();renderNote();renderNav('');toast('All data deleted','err');
+    showConfirm({
+      icon:'💥',
+      title:'Delete ALL notes and notebooks?',
+      body:'This will permanently erase every note, every notebook, and every category. <strong>This absolutely cannot be undone.</strong>',
+      okLabel:'Delete Everything',
+      onOk:()=>{
+        notes={};notebooks=[];sections=[];curId=null;
+        saveNotes();saveNav();renderNote();renderNav('');toast('All data deleted','err');
+      }
+    });
   });
 
   // ── lang menu ──
