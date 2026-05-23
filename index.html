@@ -843,6 +843,18 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
 </div>
 <input type="color" id="cat-custom-color">
 
+<!-- DISK RECONNECT BANNER -->
+<div id="disk-banner" style="
+  display:none;position:fixed;bottom:56px;left:50%;transform:translateX(-50%);z-index:990;
+  background:var(--mb);border:1px solid var(--mb-bdr);border-radius:6px;box-shadow:var(--shd);
+  padding:10px 16px;display:none;align-items:center;gap:12px;font-size:12px;max-width:420px;
+">
+  <span style="font-size:16px">📁</span>
+  <span id="disk-banner-msg" style="flex:1;color:var(--tx2)">Reconnecting to your notes folder…</span>
+  <button id="disk-banner-grant" style="padding:4px 12px;border-radius:3px;background:var(--ac);color:#fff;border:none;cursor:pointer;font-size:12px;white-space:nowrap">Grant Access</button>
+  <button id="disk-banner-dismiss" style="padding:4px 8px;border-radius:3px;border:1px solid var(--bdr);color:var(--tx2);background:transparent;cursor:pointer;font-size:12px">Dismiss</button>
+</div>
+
 <div id="toasts"></div>
 
 <script>
@@ -850,7 +862,7 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
 // ════════════════════════════
 // DATA
 // ════════════════════════════
-const SK_N='edna3_notes', SK_C='edna3_cfg', SK_D='edna3_disk';
+const SK_N='edna3_notes', SK_C='edna3_cfg';
 
 const DK=[
   {id:'dark',        n:'VS Dark',     sw:['#1e1e1e','#569cd6','#4ec9b0','#dcdcaa']},
@@ -1160,29 +1172,46 @@ function buildPageEl(noteId, secId, withSubs) {
   const wrap = document.createElement('div');
   wrap.dataset.pgid = noteId;
 
+  // ── page row ──
   const pgEl = document.createElement('div');
   pgEl.className = 'pg' + (isActive ? ' active' : '') + (hasSubs ? ' has-sub' : '') + (n._pgOpen ? ' pg-open' : '');
   pgEl.dataset.pgid = noteId;
   pgEl.draggable = true;
-  pgEl.innerHTML = `
-    <span class="pg-icon">${hasSubs ? (n._pgOpen?'▾':'▸') : '◦'}</span>
-    <span class="pg-name">${esc(n.name)}</span>
-    <button class="pg-menu-btn" title="Page options">⋯</button>`;
+
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'pg-icon';
+  iconSpan.textContent = hasSubs ? (n._pgOpen ? '▾' : '▸') : '◦';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'pg-name';
+  nameSpan.textContent = n.name;
+  // double-click to rename inline
+  nameSpan.addEventListener('dblclick', e => { e.stopPropagation(); startNavRename(noteId, 'pg'); });
+
+  const menuBtn = document.createElement('button');
+  menuBtn.className = 'pg-menu-btn';
+  menuBtn.title = 'Page options';
+  menuBtn.textContent = '⋯';
+  menuBtn.addEventListener('click', e => { e.stopPropagation(); showPgCtx(e, noteId); });
+
+  pgEl.appendChild(iconSpan);
+  pgEl.appendChild(nameSpan);
+  pgEl.appendChild(menuBtn);
 
   pgEl.addEventListener('click', e => {
-    if (hasSubs) { n._pgOpen=!n._pgOpen; renderNav(q('nav-search').value); }
+    // don't navigate if clicking the rename input
+    if (e.target.classList.contains('nav-rename')) return;
+    if (hasSubs) { n._pgOpen = !n._pgOpen; renderNav(q('nav-search').value); return; }
     curId = noteId; renderNote(); renderNav(q('nav-search').value);
   });
   pgEl.addEventListener('contextmenu', e => { e.preventDefault(); showPgCtx(e, noteId); });
-  pgEl.querySelector('.pg-menu-btn').addEventListener('click', e => { e.stopPropagation(); showPgCtx(e, noteId); });
-  pgEl.addEventListener('dragstart', e => { e.dataTransfer.setData('pgId', noteId); e.dataTransfer.effectAllowed='move'; });
+  pgEl.addEventListener('dragstart', e => { e.dataTransfer.setData('pgId', noteId); e.dataTransfer.effectAllowed = 'move'; });
   pgEl.addEventListener('dragover',  e => { e.preventDefault(); pgEl.classList.add('nav-drop-target'); });
   pgEl.addEventListener('dragleave', () => pgEl.classList.remove('nav-drop-target'));
   pgEl.addEventListener('drop', e => {
     e.preventDefault(); pgEl.classList.remove('nav-drop-target');
     const draggedId = e.dataTransfer.getData('pgId');
     if (draggedId && draggedId !== noteId && notes[draggedId]) {
-      // drop onto a page = make it a sub-page
       notes[draggedId].pgId  = noteId;
       notes[draggedId].secId = n.secId;
       notes[draggedId].nbId  = n.nbId;
@@ -1193,27 +1222,65 @@ function buildPageEl(noteId, secId, withSubs) {
 
   wrap.appendChild(pgEl);
 
-  // sub-pages
+  // ── sub-pages ──
   if (subs.length) {
     const subWrap = document.createElement('div');
     subWrap.className = 'pg-subpages';
+
     subs.forEach(sub => {
       const subEl = document.createElement('div');
-      subEl.className = 'subpg' + (curId===sub.id?' active':'');
+      subEl.className = 'subpg' + (curId === sub.id ? ' active' : '');
       subEl.dataset.pgid = sub.id;
       subEl.draggable = true;
-      subEl.innerHTML = `<span class="subpg-icon">◦</span><span class="subpg-name">${esc(sub.name)}</span><button class="subpg-menu-btn" title="Sub-page options">⋯</button>`;
-      subEl.addEventListener('click', () => { curId=sub.id; renderNote(); renderNav(q('nav-search').value); });
+
+      const subIcon = document.createElement('span');
+      subIcon.className = 'subpg-icon';
+      subIcon.textContent = '◦';
+
+      const subName = document.createElement('span');
+      subName.className = 'subpg-name';
+      subName.textContent = sub.name;
+      subName.addEventListener('dblclick', e => { e.stopPropagation(); startNavRename(sub.id, 'pg'); });
+
+      const subMenu = document.createElement('button');
+      subMenu.className = 'subpg-menu-btn';
+      subMenu.title = 'Sub-page options';
+      subMenu.textContent = '⋯';
+      subMenu.addEventListener('click', e => { e.stopPropagation(); showPgCtx(e, sub.id); });
+
+      subEl.appendChild(subIcon);
+      subEl.appendChild(subName);
+      subEl.appendChild(subMenu);
+
+      subEl.addEventListener('click', e => {
+        if (e.target.classList.contains('nav-rename')) return;
+        curId = sub.id; renderNote(); renderNav(q('nav-search').value);
+      });
       subEl.addEventListener('contextmenu', e => { e.preventDefault(); showPgCtx(e, sub.id); });
-      subEl.querySelector('.subpg-menu-btn').addEventListener('click', e => { e.stopPropagation(); showPgCtx(e, sub.id); });
-      subEl.addEventListener('dragstart', e => { e.dataTransfer.setData('pgId', sub.id); e.dataTransfer.effectAllowed='move'; });
+      subEl.addEventListener('dragstart', e => { e.dataTransfer.setData('pgId', sub.id); e.dataTransfer.effectAllowed = 'move'; });
+
       subWrap.appendChild(subEl);
     });
+
     // add sub-page button
     const addSub = document.createElement('div');
     addSub.style.cssText = 'padding:1px 8px 3px 60px';
-    addSub.innerHTML = `<button style="font-size:10px;color:var(--tx3);padding:1px 5px;border-radius:2px;transition:background .1s" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">＋ sub-page</button>`;
-    addSub.querySelector('button').addEventListener('click', e => { e.stopPropagation(); const sn=addPage(n.secId,noteId); n._pgOpen=true; curId=sn.id; renderNav(q('nav-search').value); renderNote(); toast('New sub-page','ok'); setTimeout(()=>startNavRename(sn.id,'pg'),60); });
+    const addSubBtn = document.createElement('button');
+    addSubBtn.style.cssText = 'font-size:10px;color:var(--tx3);padding:1px 5px;border-radius:2px;transition:background .1s';
+    addSubBtn.textContent = '＋ sub-page';
+    addSubBtn.addEventListener('mouseover', () => addSubBtn.style.background = 'var(--bg-hover)');
+    addSubBtn.addEventListener('mouseout',  () => addSubBtn.style.background = '');
+    addSubBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const sn = addPage(n.secId, noteId);
+      n._pgOpen = true;
+      curId = sn.id;
+      renderNav(q('nav-search').value);
+      renderNote();
+      toast('New sub-page', 'ok');
+      setTimeout(() => startNavRename(sn.id, 'pg'), 80);
+    });
+    addSub.appendChild(addSubBtn);
     subWrap.appendChild(addSub);
     wrap.appendChild(subWrap);
   }
@@ -1225,28 +1292,60 @@ function buildPageEl(noteId, secId, withSubs) {
 // NAVBAR INLINE RENAME
 // ════════════════════════════
 function startNavRename(id, type) {
-  // type: 'nb' | 'sec' | 'pg'
-  let nameEl;
-  if (type==='nb') nameEl = document.querySelector(`.nb[data-nbid="${id}"] > .nb-hdr .nb-name`);
-  else if (type==='sec') nameEl = document.querySelector(`.sec[data-secid="${id}"] > .sec-hdr .sec-name`);
-  else nameEl = document.querySelector(`[data-pgid="${id}"] .pg-name`) || document.querySelector(`[data-pgid="${id}"] .subpg-name`);
-  if (!nameEl) return;
-  const old = type==='nb' ? notebooks.find(n=>n.id===id)?.name : type==='sec' ? sections.find(s=>s.id===id)?.name : notes[id]?.name;
+  // Find the name element
+  let nameEl = null;
+  if (type === 'nb')  nameEl = document.querySelector(`.nb[data-nbid="${id}"] > .nb-hdr .nb-name`);
+  else if (type === 'sec') nameEl = document.querySelector(`.sec[data-secid="${id}"] > .sec-hdr .sec-name`);
+  else {
+    // Try both page and sub-page name spans inside any element with data-pgid
+    nameEl = document.querySelector(`.pg[data-pgid="${id}"] .pg-name`)
+          || document.querySelector(`.subpg[data-pgid="${id}"] .subpg-name`);
+  }
+  if (!nameEl) { console.warn('startNavRename: no element found for', id, type); return; }
+
+  const old = type === 'nb'  ? notebooks.find(n=>n.id===id)?.name
+            : type === 'sec' ? sections.find(s=>s.id===id)?.name
+            : notes[id]?.name || '';
+
+  // Build input
   const inp = document.createElement('input');
   inp.className = 'nav-rename';
-  inp.value = old || '';
+  inp.value = old;
+
+  // Prevent the parent click handler from firing while renaming
+  inp.addEventListener('click', e => e.stopPropagation());
+  inp.addEventListener('mousedown', e => e.stopPropagation());
+
   nameEl.replaceWith(inp);
-  inp.focus(); inp.select();
-  const finish = () => {
+  inp.focus();
+  inp.select();
+
+  let committed = false;
+  const commit = () => {
+    if (committed) return;
+    committed = true;
     const val = inp.value.trim() || old;
-    if (type==='nb') { const nb=notebooks.find(n=>n.id===id); if(nb) nb.name=val; saveNav(); }
-    else if (type==='sec') { const sec=sections.find(s=>s.id===id); if(sec) sec.name=val; saveNav(); }
-    else { if(notes[id]) { notes[id].name=val; sched(); } }
+    if (type === 'nb')  { const nb  = notebooks.find(n=>n.id===id); if (nb)  { nb.name  = val; saveNav(); } }
+    else if (type === 'sec') { const sec = sections.find(s=>s.id===id);  if (sec) { sec.name = val; saveNav(); } }
+    else { if (notes[id]) { notes[id].name = val; sched(); } }
     renderNav(q('nav-search').value);
-    if (curId===id) { q('btn-notename').textContent=val; q('sb-note').textContent='📝 '+val; }
+    if (curId === id) {
+      q('btn-notename').textContent = val;
+      q('sb-note').textContent = '📝 ' + val;
+    }
   };
-  inp.onblur = finish;
-  inp.onkeydown = e => { if(e.key==='Enter'){e.preventDefault();inp.blur();} if(e.key==='Escape'){inp.value=old;inp.blur();} e.stopPropagation(); };
+  const cancel = () => {
+    if (committed) return;
+    committed = true;
+    renderNav(q('nav-search').value);
+  };
+
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter')  { e.preventDefault(); inp.removeEventListener('blur', commit); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); inp.removeEventListener('blur', commit); cancel(); }
+  });
 }
 
 // ════════════════════════════
@@ -1448,7 +1547,7 @@ function showPgCtx(e, pgId) {
 // ════════════════════════════
 // NAVBAR ACTIONS
 // ════════════════════════════
-window.navRen = (id,type) => setTimeout(()=>startNavRename(id,type),30);
+window.navRen = (id, type) => setTimeout(() => startNavRename(id, type), 80);
 window.addSectionToNb = nbId => { openCatPopNew(nbId, document.querySelector(`.nb[data-nbid="${nbId}"] .nb-hdr`) || document.body); };
 window.addPgToSec = secId => { const n=addPage(secId,null); curId=n.id; renderNav(q('nav-search').value); renderNote(); toast('New page','ok'); setTimeout(()=>startNavRename(n.id,'pg'),60); };
 window.addSubPage = pgId => { const p=notes[pgId]; if(!p)return; const n=addPage(p.secId,pgId); p._pgOpen=true; curId=n.id; renderNav(q('nav-search').value); renderNote(); toast('New sub-page','ok'); setTimeout(()=>startNavRename(n.id,'pg'),60); };
@@ -2189,74 +2288,219 @@ function expAll(){dl('starnotebook-backup.json',JSON.stringify(notes,null,2),'ap
 function expNote(id){const n=notes[id];if(!n)return;dl((n.name||'note').replace(/[^a-z0-9]/gi,'_')+'.txt',n.blocks.map(b=>`--- ${b.type} ---\n${b.content}`).join('\n\n'),'text/plain');}
 
 // ════════════════════════════
+// INDEXEDDB — persists the FileSystemDirectoryHandle across refreshes
+// ════════════════════════════
+const IDB_NAME    = 'starnotebook_idb';
+const IDB_STORE   = 'handles';
+const IDB_KEY     = 'dirHandle';
+
+function openIDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+async function idbSaveHandle(handle) {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(handle, IDB_KEY);
+    return new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = e => rej(e.target.error); });
+  } catch(_) {}
+}
+async function idbLoadHandle() {
+  try {
+    const db = await openIDB();
+    return new Promise((res, rej) => {
+      const tx  = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess = () => res(req.result || null);
+      req.onerror   = () => res(null);
+    });
+  } catch(_) { return null; }
+}
+async function idbClearHandle() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(IDB_KEY);
+  } catch(_) {}
+}
+
+// Try to restore a previously-saved directory handle on page load.
+// Returns the verified handle, or null.
+async function restoreDirHandle() {
+  const handle = await idbLoadHandle();
+  if (!handle) return null;
+  try {
+    // Check if we already have permission (no prompt needed after a recent grant)
+    let perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') return handle;
+    // Otherwise ask the user — this requires a user gesture, so we show a banner
+    perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm === 'granted') return handle;
+    return null;
+  } catch(_) { return null; }
+}
+
+// ════════════════════════════
 // DISK STORAGE
 // ════════════════════════════
-const diskOK=()=>'showDirectoryPicker' in window;
-const sfn=name=>(name||'note').replace(/[<>:"/\\|?*\x00-\x1F]/g,'_').trim().slice(0,80)||'note';
-function noteToFile(n){
-  let s=`---starnotebook---\n${JSON.stringify({id:n.id,name:n.name,created:n.created,updated:n.updated})}\n---blocks---\n`;
-  n.blocks.forEach(b=>{s+=`---block:${b.type}---\n${b.content}\n`;});return s;
+const diskOK = () => 'showDirectoryPicker' in window;
+const sfn = name => (name||'note').replace(/[<>:"/\\|?*\x00-\x1F]/g,'_').trim().slice(0,80)||'note';
+
+function noteToFile(n) {
+  let s = `---starnotebook---\n${JSON.stringify({id:n.id,name:n.name,created:n.created,updated:n.updated})}\n---blocks---\n`;
+  n.blocks.forEach(b => { s += `---block:${b.type}---\n${b.content}\n`; });
+  return s;
 }
-function fileToNote(text,fname){
-  try{
-    const lines=text.split('\n');let meta={},im=false,ib=false,blocks=[],cur=null,acc=[];
-    for(const l of lines){
-      if(l==='---starnotebook---'){im=true;continue;}
-      if(l==='---blocks---'){im=false;ib=true;continue;}
-      if(im){try{meta=JSON.parse(l);}catch(_){}continue;}
-      if(ib){const m=l.match(/^---block:(\w+)---$/);if(m){if(cur){cur.content=acc.join('\n').replace(/\n$/,'');blocks.push(cur);}cur={id:mkBid(),type:m[1],content:''};acc=[];}else if(cur)acc.push(l);}
+function fileToNote(text, fname) {
+  try {
+    const lines = text.split('\n');
+    let meta={}, im=false, ib=false, blocks=[], cur=null, acc=[];
+    for (const l of lines) {
+      if (l==='---starnotebook---') { im=true; continue; }
+      if (l==='---blocks---')       { im=false; ib=true; continue; }
+      if (im) { try { meta=JSON.parse(l); } catch(_){} continue; }
+      if (ib) {
+        const m = l.match(/^---block:(\w+)---$/);
+        if (m) { if(cur){cur.content=acc.join('\n').replace(/\n$/,'');blocks.push(cur);} cur={id:mkBid(),type:m[1],content:''}; acc=[]; }
+        else if (cur) acc.push(l);
+      }
     }
-    if(cur){cur.content=acc.join('\n').replace(/\n$/,'');blocks.push(cur);}
-    if(!meta.id)meta.id=mkNid();if(!meta.name)meta.name=fname.replace('.edna.txt','');
-    return{...meta,blocks:blocks.length?blocks:[mkBlk('text')]};
-  }catch(_){return null;}
+    if (cur) { cur.content=acc.join('\n').replace(/\n$/,''); blocks.push(cur); }
+    if (!meta.id)   meta.id   = mkNid();
+    if (!meta.name) meta.name = fname.replace('.edna.txt','').replace('.starnotebook.txt','');
+    return { ...meta, blocks: blocks.length ? blocks : [mkBlk('text')] };
+  } catch(_) { return null; }
 }
-async function saveDisk(){
-  if(!disk.dir)return;
-  for(const[,n]of Object.entries(notes)){
-    const fh=await disk.dir.getFileHandle(sfn(n.name)+'.edna.txt',{create:true});
-    const w=await fh.createWritable();await w.write(noteToFile(n));await w.close();
+
+async function saveDisk() {
+  if (!disk.dir) return;
+  for (const [, n] of Object.entries(notes)) {
+    const fh = await disk.dir.getFileHandle(sfn(n.name)+'.edna.txt', {create:true});
+    const w  = await fh.createWritable();
+    await w.write(noteToFile(n)); await w.close();
   }
-  try{const ih=await disk.dir.getFileHandle('.edna-index.json',{create:true});const iw=await ih.createWritable();
-    await iw.write(JSON.stringify(Object.fromEntries(Object.entries(notes).map(([id,n])=>[id,sfn(n.name)+'.edna.txt'])),null,2));await iw.close();}catch(_){}
+  // write index so we can recover IDs on reload
+  try {
+    const ih = await disk.dir.getFileHandle('.edna-index.json', {create:true});
+    const iw = await ih.createWritable();
+    const idx = Object.fromEntries(Object.entries(notes).map(([id,n])=>[id, sfn(n.name)+'.edna.txt']));
+    await iw.write(JSON.stringify(idx, null, 2)); await iw.close();
+  } catch(_) {}
 }
-async function loadDisk(dir){
-  const loaded={};let idx={};
-  try{const f=await(await dir.getFileHandle('.edna-index.json')).getFile();idx=JSON.parse(await f.text());}catch(_){}
-  for await(const e of dir.values()){
-    if(e.kind!=='file'||!e.name.endsWith('.edna.txt'))continue;
-    try{const text=await(await e.getFile()).text();const n=fileToNote(text,e.name);if(n){const rid=Object.entries(idx).find(([,fn])=>fn===e.name)?.[0];if(rid)n.id=rid;loaded[n.id]=n;}}catch(_){}
+
+async function loadDisk(dir) {
+  const loaded = {}; let idx = {};
+  try { const f=await(await dir.getFileHandle('.edna-index.json')).getFile(); idx=JSON.parse(await f.text()); } catch(_){}
+  for await (const e of dir.values()) {
+    if (e.kind!=='file' || !e.name.endsWith('.edna.txt')) continue;
+    try {
+      const text = await (await e.getFile()).text();
+      const n = fileToNote(text, e.name);
+      if (n) {
+        const rid = Object.entries(idx).find(([,fn])=>fn===e.name)?.[0];
+        if (rid) n.id = rid;
+        loaded[n.id] = n;
+      }
+    } catch(_) {}
   }
   return loaded;
 }
-function diskDel(n){if(disk.dir)disk.dir.removeEntry(sfn(n.name)+'.edna.txt').catch(()=>{});}
 
-async function diskMove(existing){
-  if(!diskOK()){toast('File System Access API not supported','err');return;}
-  try{
-    const dir=await window.showDirectoryPicker({mode:'readwrite'});
-    disk={mode:'disk',dir};notes={...existing};await saveDisk();
-    localStorage.removeItem(SK_N);localStorage.setItem(SK_D,JSON.stringify({mode:'disk'}));
-    updateSB();buildSetUI();toast('Moved to disk ('+Object.keys(notes).length+' notes)','ok');renderNote();
-  }catch(e){if(e.name!=='AbortError')toast('Failed: '+e.message,'err');}
+function diskDel(n) {
+  if (disk.dir) disk.dir.removeEntry(sfn(n.name)+'.edna.txt').catch(()=>{});
 }
-async function diskSwitch(){
-  if(!diskOK()){toast('File System Access API not supported','err');return;}
-  try{
-    const dir=await window.showDirectoryPicker({mode:'readwrite'});
-    disk={mode:'disk',dir};localStorage.setItem(SK_D,JSON.stringify({mode:'disk'}));
-    const loaded=await loadDisk(dir);
-    if(!Object.keys(loaded).length){const n=mkNote('scratch');loaded[n.id]=n;}
-    notes=loaded;curId=Object.keys(notes)[0]||null;await saveDisk();
-    updateSB();buildSetUI();renderNote();toast('Switched directory ('+Object.keys(notes).length+' notes)','ok');
-  }catch(e){if(e.name!=='AbortError')toast('Failed: '+e.message,'err');}
+
+async function diskMove(existing) {
+  if (!diskOK()) { toast('File System Access API not supported (use Chrome/Edge)', 'err'); return; }
+  try {
+    const dir = await window.showDirectoryPicker({ mode:'readwrite' });
+    disk = { mode:'disk', dir };
+    notes = { ...existing };
+    await saveDisk();
+    await idbSaveHandle(dir);
+    localStorage.removeItem(SK_N);
+    updateSB(); buildSetUI();
+    toast('Moved to disk (' + Object.keys(notes).length + ' notes) — reloads will reconnect automatically', 'ok');
+    renderNote();
+  } catch(e) { if (e.name!=='AbortError') toast('Failed: '+e.message, 'err'); }
 }
-function diskBrowser(){
-  if(!confirm('Switch to browser storage?\nNotes on disk stay intact.'))return;
-  disk={mode:'browser',dir:null};localStorage.removeItem(SK_D);
-  try{const r=localStorage.getItem(SK_N);if(r)notes=JSON.parse(r);}catch(_){notes={};}
-  if(!notes[curId])curId=Object.keys(notes)[0]||null;
-  updateSB();buildSetUI();renderNote();toast('Switched to browser storage');
+
+async function diskSwitch() {
+  if (!diskOK()) { toast('File System Access API not supported (use Chrome/Edge)', 'err'); return; }
+  try {
+    const dir = await window.showDirectoryPicker({ mode:'readwrite' });
+    disk = { mode:'disk', dir };
+    await idbSaveHandle(dir);
+    const loaded = await loadDisk(dir);
+    if (!Object.keys(loaded).length) { const n=mkNote('scratch'); loaded[n.id]=n; }
+    notes = loaded;
+    curId = Object.keys(notes)[0] || null;
+    await saveDisk();
+    localStorage.removeItem(SK_N);
+    updateSB(); buildSetUI(); renderNote();
+    toast('Switched directory (' + Object.keys(notes).length + ' notes) — reloads will reconnect automatically', 'ok');
+  } catch(e) { if (e.name!=='AbortError') toast('Failed: '+e.message, 'err'); }
+}
+
+function diskBrowser() {
+  if (!confirm('Switch to browser storage?\nNotes on disk stay intact.')) return;
+  disk = { mode:'browser', dir:null };
+  idbClearHandle();
+  try { const r=localStorage.getItem(SK_N); if(r) notes=JSON.parse(r); } catch(_) { notes={}; }
+  if (!notes[curId]) curId = Object.keys(notes)[0] || null;
+  updateSB(); buildSetUI(); renderNote();
+  toast('Switched to browser storage');
+}
+
+// ════════════════════════════
+// DISK RECONNECT BANNER
+// ════════════════════════════
+function showDiskBanner(handle) {
+  const banner  = q('disk-banner');
+  const msg     = q('disk-banner-msg');
+  const grantBtn= q('disk-banner-grant');
+  const dismissBtn = q('disk-banner-dismiss');
+
+  msg.textContent = 'Your notes are stored on disk. Click "Grant Access" to reconnect.';
+  banner.style.display = 'flex';
+
+  grantBtn.onclick = async () => {
+    try {
+      const perm = await handle.requestPermission({ mode:'readwrite' });
+      if (perm === 'granted') {
+        disk = { mode:'disk', dir:handle };
+        const loaded = await loadDisk(handle);
+        if (Object.keys(loaded).length) {
+          notes = loaded;
+          curId = notes[curId] ? curId : Object.keys(notes)[0] || null;
+        }
+        localStorage.removeItem(SK_N);
+        banner.style.display = 'none';
+        updateSB(); buildSetUI(); renderNote(); renderNav('');
+        toast('Reconnected to disk folder ✓', 'ok');
+      } else {
+        msg.textContent = 'Permission denied — using browser storage instead.';
+        setTimeout(() => { banner.style.display='none'; }, 3000);
+        await idbClearHandle();
+      }
+    } catch(e) {
+      msg.textContent = 'Could not reconnect: ' + e.message;
+      setTimeout(() => { banner.style.display='none'; }, 3000);
+    }
+  };
+
+  dismissBtn.onclick = async () => {
+    banner.style.display = 'none';
+    await idbClearHandle();
+    disk = { mode:'browser', dir:null };
+    updateSB(); buildSetUI();
+    toast('Staying on browser storage');
+  };
 }
 
 // ════════════════════════════
@@ -2323,6 +2567,29 @@ async function init(){
   rs.setProperty('--elh',String(cfg.lh));
   rs.setProperty('--ewrap',cfg.wrap);
   rs.setProperty('--ets',String(cfg.ts));
+
+  // ── Restore disk directory handle from IndexedDB ──
+  const savedHandle = await idbLoadHandle();
+  if (savedHandle) {
+    try {
+      const perm = await savedHandle.queryPermission({ mode:'readwrite' });
+      if (perm === 'granted') {
+        // Permission already active — reconnect silently
+        disk = { mode:'disk', dir:savedHandle };
+        const loaded = await loadDisk(savedHandle);
+        if (Object.keys(loaded).length) {
+          notes = loaded;
+        }
+        localStorage.removeItem(SK_N);
+      } else {
+        // Need user gesture to re-grant — show the reconnect banner
+        showDiskBanner(savedHandle);
+      }
+    } catch(_) {
+      // Handle is stale or inaccessible — clear it
+      await idbClearHandle();
+    }
+  }
 
   // ── bootstrap default content ──
   if(!Object.keys(notes).length){
