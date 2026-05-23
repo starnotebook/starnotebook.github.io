@@ -1,7 +1,7 @@
 {
-  "name": "Star note book",
+  "name": "Star notebook",
   "short_name": "Starnotebook",
-  "description": "Star note book - text editor allow to edit any file in your local environment.",
+  "description": "Star notebook - text editor allow to edit any file in your local environment.",
   "start_url": "index.html",
   "scope": "/",
   "display": "standalone",

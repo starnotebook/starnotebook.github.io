@@ -5,7 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Starnotebook — Note taking with super powers</title>
+<title>Star notebook</title>
+<!-- PWA: enables Window Controls Overlay so the app controls its own title bar -->
+<meta name="theme-color" content="#2a2a2a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- Inline manifest for single-file PWA desktop support -->
+<script>
+  // Register an inline service worker and manifest when running as installed PWA
+  if ('serviceWorker' in navigator) {
+    const manifest = {
+      name: 'Star notebook',
+      short_name: 'Starnotebook',
+      start_url: location.href,
+      display: 'standalone',
+      display_override: ['window-controls-overlay', 'standalone'],
+      theme_color: '#2a2a2a',
+      background_color: '#1e1e1e',
+      icons: [{ src: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⭐</text></svg>', sizes: 'any', type: 'image/svg+xml' }]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const manifestURL = URL.createObjectURL(blob);
+    const link = document.createElement('link');
+    link.rel = 'manifest'; link.href = manifestURL;
+    document.head.appendChild(link);
+  }
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Fira+Code:wght@300;400;500&family=Source+Code+Pro:wght@300;400;500&family=IBM+Plex+Mono:wght@300;400;500&family=Inconsolata:wght@300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -117,10 +143,68 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 
 /* ── TOP BAR (28px) ── */
 #topbar{
-  display:flex;align-items:center;gap:4px;height:28px;flex-shrink:0;
-  background:var(--bg-bar);border-bottom:1px solid var(--bdr);padding:0 6px;
+  display:flex;align-items:center;gap:4px;
+  /* Use WCO env vars when available (installed PWA with window-controls-overlay),
+     fall back to fixed 28px height otherwise */
+  height:max(28px, env(titlebar-area-height, 28px));
+  flex-shrink:0;
+  background:var(--bg-bar);border-bottom:1px solid var(--bdr);
+  padding:0 6px;
+  /* Shift content right of the system window buttons on the left (macOS style) */
+  padding-left:max(6px, env(titlebar-area-x, 6px));
   user-select:none;
+  /* Make the bar draggable like a native title bar */
+  -webkit-app-region:drag;
+  app-region:drag;
 }
+/* ══════════════════════════════════════════════
+   DESKTOP PWA / ELECTRON — app-region declarations
+   The topbar doubles as the native drag handle.
+   Every interactive child must be set to no-drag
+   or pointer events will be swallowed by the OS.
+══════════════════════════════════════════════ */
+
+/* Make the whole topbar draggable (move the window) */
+#topbar {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Exempt every clickable element inside topbar */
+#topbar button,
+#topbar .tb,
+#topbar .tb-sep,
+#topbar .tb-gap,
+#topbar * {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Nav header can also act as drag area on the left side,
+   but its button must remain clickable */
+#nav-hdr {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+#nav-hdr * {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* All overlays, menus, modals — must never be blocked */
+#pal-ov, #pal-box, #ctx, #lm, #set-ov, #set-box,
+#confirm-modal, #confirm-modal > div,
+#cat-pop, #disk-banner, #toasts, .toast {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Status bar clickable items */
+#sbar, #sbar * {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 .tb{display:flex;align-items:center;gap:4px;padding:2px 8px;height:22px;border-radius:3px;font-size:12px;color:var(--tx);white-space:nowrap;transition:background .1s}
 .tb:hover{background:var(--bg-hover)}
 .tb.active{color:var(--ac)}
@@ -600,6 +684,8 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
     <div class="tb-sep"></div>
     <button class="tb" id="btn-notename" title="Switch note (Ctrl+P)">scratch</button>
     <div class="tb-sep"></div>
+    <button class="tb" id="btn-newnote" title="New note (Ctrl+N)">+ Note</button>
+    <button class="tb" id="btn-newblk" title="Add block (Ctrl+Enter)">+ Block</button>
     <div class="tb-gap"></div>
     <button class="tb" id="btn-pal" title="Command palette (Ctrl+P)">⌘</button>
     <div class="tb-sep"></div>
