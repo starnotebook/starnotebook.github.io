@@ -11,6 +11,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Star notebook">
+<link rel="apple-touch-icon" href="192x192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Fira+Code:wght@300;400;500&family=Source+Code+Pro:wght@300;400;500&family=IBM+Plex+Mono:wght@300;400;500&family=Inconsolata:wght@300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -100,7 +102,13 @@
 [data-font="source"]     { --fe:'Source Code Pro',monospace; }
 [data-font="ibm"]        { --fe:'IBM Plex Mono',monospace; }
 [data-font="inconsolata"]{ --fe:'Inconsolata',monospace; }
-:root { --fe:'JetBrains Mono',monospace; --fu:'Inter',system-ui,sans-serif; --esz:14px; --elh:1.6; --ewrap:pre-wrap; --ets:2; }
+:root {
+  --fe:'JetBrains Mono',monospace; --fu:'Inter',system-ui,sans-serif; --esz:14px; --elh:1.6; --ewrap:pre-wrap; --ets:2;
+  --safe-top:max(0px, env(safe-area-inset-top));
+  --safe-right:max(0px, env(safe-area-inset-right));
+  --safe-bottom:max(0px, env(safe-area-inset-bottom));
+  --safe-left:max(0px, env(safe-area-inset-left));
+}
 
 /* ══════════════════════════════════════════════
    RESET & BASE
@@ -118,7 +126,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 /* ══════════════════════════════════════════════
    SHELL
 ══════════════════════════════════════════════ */
-#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;padding:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left)}
 
 /* ── TOP BAR (28px) ── */
 #topbar{
@@ -364,6 +372,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 #toasts{position:fixed;bottom:32px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px}
 .toast{padding:8px 14px;border-radius:4px;font-size:12px;background:var(--mb);border:1px solid var(--mb-bdr);color:var(--tx);box-shadow:var(--shd);animation:tIn .18s ease;max-width:320px}
 .toast.ok{border-color:var(--grn)} .toast.err{border-color:var(--red)}
+.toast.warn{border-color:var(--ylw)}
 @keyframes tIn{from{transform:translateX(16px);opacity:0}to{transform:none;opacity:1}}
 
 /* ══════════════════════════════════════════════
@@ -380,6 +389,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 ══════════════════════════════════════════════ */
 #body-row{display:flex;flex:1;overflow:hidden;min-height:0}
 
+#nav-backdrop{
+  position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);
+  opacity:0;pointer-events:none;transition:opacity .18s ease;
+}
+#nav-backdrop.open{opacity:1;pointer-events:auto}
+
 /* ══════════════════════════════════════════════
    LEFT NAVBAR  (OneNote-style)
 ══════════════════════════════════════════════ */
@@ -388,7 +403,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
   background:var(--bg-ui);border-right:1px solid var(--bdr);
   display:flex;flex-direction:column;flex-shrink:0;
   overflow:hidden;transition:width .18s ease,min-width .18s ease;
-  position:relative;
+  position:relative;z-index:50;
 }
 #nav.collapsed{width:0 !important;min-width:0 !important;border-right:none}
 
@@ -594,7 +609,132 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
 /* drag-over highlight */
 .nav-drop-target{outline:2px dashed var(--ac) !important;outline-offset:-2px}
 
+/* Highlight.js overrides */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+}
+
+/* worklog */
+.worklog-shell{padding:18px 18px 28px;display:flex;flex-direction:column;gap:16px;min-height:100%}
+.worklog-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.worklog-title{display:flex;flex-direction:column;gap:4px}
+.worklog-title h2{font-size:20px;font-weight:600}
+.worklog-sub{font-size:12px;color:var(--tx2)}
+.worklog-actions,.worklog-view-switch,.worklog-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip-btn,.view-btn,.icon-btn,.pri-chip,.status-chip,.task-ref,.worklog-col-add{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:7px 11px;border-radius:999px;border:1px solid var(--bdr);
+  background:var(--bg-ui);color:var(--tx);font-size:12px;transition:all .14s ease;
+}
+.chip-btn:hover,.view-btn:hover,.icon-btn:hover,.worklog-col-add:hover,.task-ref:hover{border-color:var(--ac);color:var(--ac)}
+.view-btn.active{background:rgba(86,156,214,.12);border-color:var(--ac);color:var(--ac)}
+.icon-btn{width:34px;height:34px;padding:0;border-radius:10px;font-size:15px}
+.icon-btn.recording{border-color:var(--red);color:var(--red);box-shadow:0 0 0 6px rgba(244,71,71,.12);animation:micPulse 1.2s ease-in-out infinite}
+@keyframes micPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.worklog-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.worklog-col{background:linear-gradient(180deg,rgba(255,255,255,.03),transparent),var(--bg-ui);border:1px solid var(--bdr);border-radius:16px;display:flex;flex-direction:column;min-height:320px;overflow:hidden}
+.worklog-col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 14px 10px;border-bottom:1px solid var(--bdr)}
+.worklog-col-title{font-size:13px;font-weight:600}
+.worklog-count{font-size:11px;color:var(--tx2);font-family:var(--fe)}
+.worklog-card-list{display:flex;flex-direction:column;gap:10px;padding:12px;min-height:180px;flex:1}
+.worklog-card{background:var(--bg);border:1px solid var(--bdr);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 18px rgba(0,0,0,.14);cursor:grab}
+.worklog-card.dragging{opacity:.55}
+.worklog-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.worklog-card-title{font-size:13px;font-weight:600;line-height:1.4}
+.worklog-card-key{font-size:11px;color:var(--ac);font-family:var(--fe)}
+.worklog-card-meta,.task-chip-row,.worklog-empty-refs{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.worklog-empty{color:var(--tx3);font-size:12px;border:1px dashed var(--bdr);border-radius:12px;padding:14px;text-align:center}
+.pri-chip{padding:3px 9px;font-size:10px}
+.pri-low{color:var(--grn);border-color:rgba(78,201,176,.35)}
+.pri-medium{color:var(--ylw);border-color:rgba(220,220,170,.35)}
+.pri-high{color:var(--org);border-color:rgba(206,145,120,.35)}
+.pri-urgent{color:var(--red);border-color:rgba(244,71,71,.35)}
+.status-chip{padding:3px 8px;font-size:10px;color:var(--tx2)}
+.due-pill{font-size:11px;color:var(--tx2);font-family:var(--fe)}
+.worklog-table-wrap,.worklog-calendar{background:var(--bg-ui);border:1px solid var(--bdr);border-radius:16px;overflow:auto}
+.worklog-table{width:100%;border-collapse:collapse;min-width:780px}
+.worklog-table th,.worklog-table td{padding:12px;border-bottom:1px solid var(--bdr);font-size:12px;text-align:left;vertical-align:top}
+.worklog-table th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--tx2);background:var(--bg-bar);position:sticky;top:0}
+.worklog-table input,.worklog-table select{width:100%;padding:7px 8px;border-radius:8px;background:var(--bg);border:1px solid var(--bdr)}
+.worklog-table .icon-btn{width:30px;height:30px;border-radius:8px}
+.worklog-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--bdr)}
+.worklog-month{font-size:15px;font-weight:600}
+.worklog-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.worklog-day-label,.worklog-day{border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr)}
+.worklog-day-label:nth-child(7n),.worklog-day:nth-child(7n){border-right:none}
+.worklog-day-label{padding:10px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx2);background:var(--bg-bar)}
+.worklog-day{min-height:122px;padding:8px;background:var(--bg-ui);display:flex;flex-direction:column;gap:8px}
+.worklog-day.off{background:linear-gradient(180deg,rgba(255,255,255,.02),transparent),var(--bg)}
+.worklog-day.today{box-shadow:inset 0 0 0 1px var(--ac)}
+.worklog-day-num{font-size:12px;color:var(--tx2);font-family:var(--fe)}
+.worklog-day-list{display:flex;flex-direction:column;gap:6px}
+.worklog-day-item{padding:6px 8px;border-radius:10px;border:1px solid var(--bdr);background:var(--bg);font-size:11px;cursor:pointer}
+.task-ref-row{padding:0 16px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.task-ref-label{font-size:11px;color:var(--tx3);font-family:var(--fe)}
+.task-ref{padding:4px 10px;font-size:11px;border-radius:999px;background:rgba(86,156,214,.08)}
+
+/* task modal */
+#task-modal,#worklog-settings{
+  position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;
+}
+#task-modal.open,#worklog-settings.open{display:flex}
+.modal-card{
+  width:min(720px,100%);max-height:min(90vh,820px);overflow:auto;background:var(--mb);border:1px solid var(--mb-bdr);
+  border-radius:18px;box-shadow:var(--shd);display:flex;flex-direction:column;
+}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid var(--bdr)}
+.modal-title{display:flex;flex-direction:column;gap:4px}
+.modal-title strong{font-size:15px}
+.modal-sub{font-size:11px;color:var(--tx2);font-family:var(--fe)}
+.modal-body{padding:18px;display:flex;flex-direction:column;gap:14px}
+.modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.modal-field{display:flex;flex-direction:column;gap:6px}
+.modal-field.full{grid-column:1 / -1}
+.modal-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx2)}
+.modal-input,.modal-textarea,.modal-select{
+  width:100%;padding:10px 12px;border-radius:12px;background:var(--bg);border:1px solid var(--bdr);color:var(--tx)
+}
+.modal-textarea{min-height:140px;resize:vertical}
+.modal-row{display:flex;align-items:center;gap:10px}
+.modal-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 18px;border-top:1px solid var(--bdr)}
+.btn-primary,.btn-secondary,.btn-danger{
+  padding:9px 14px;border-radius:10px;border:1px solid var(--bdr);font-size:12px;transition:all .14s ease
+}
+.btn-primary{background:var(--ac);border-color:var(--ac);color:#fff}
+.btn-primary:hover{background:var(--ac2);border-color:var(--ac2)}
+.btn-secondary:hover{border-color:var(--ac);color:var(--ac)}
+.btn-danger{color:var(--red);border-color:rgba(244,71,71,.35)}
+.btn-danger:hover{background:rgba(244,71,71,.08)}
+
+@media (max-width: 768px){
+  #app{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
+  #topbar{height:48px;padding:0 10px}
+  .tb{height:34px;padding:4px 10px;font-size:12px}
+  #btn-notename{max-width:40vw}
+  #nav{
+    position:fixed;top:calc(var(--safe-top) + 48px);bottom:var(--safe-bottom);left:0;
+    width:min(88vw,320px) !important;min-width:min(88vw,320px) !important;max-width:min(88vw,320px);
+    transform:translateX(-100%);transition:transform .22s ease;box-shadow:var(--shd);border-right:1px solid var(--bdr);
+  }
+  #nav.mobile-open{transform:translateX(0)}
+  #nav.collapsed{width:min(88vw,320px) !important;min-width:min(88vw,320px) !important;border-right:1px solid var(--bdr)}
+  #nav-resize{display:none !important}
+  #sbar{padding:0 6px;overflow:auto}
+  #toasts{left:12px;right:12px;bottom:calc(20px + var(--safe-bottom))}
+  .toast{max-width:none}
+  .worklog-shell{padding:14px 12px 24px}
+  .worklog-grid,.modal-grid{grid-template-columns:1fr}
+  .worklog-day{min-height:90px}
+  .modal-card{max-height:94vh;border-radius:16px}
+}
 </style>
+<link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -615,6 +755,7 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
 
   <!-- BODY ROW: nav + editor -->
   <div id="body-row">
+    <div id="nav-backdrop"></div>
 
     <!-- LEFT NAVBAR -->
     <div id="nav">
@@ -759,7 +900,7 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
         <div class="s-sec">
           <div class="s-hd">Disk Storage (Chrome/Edge)</div>
           <div class="s-row">
-            <div><div class="s-lbl">Move notes to disk</div><div class="s-dsc">Save as .edna.txt files in a directory</div></div>
+            <div><div class="s-lbl">Move notes to disk</div><div class="s-dsc">Save as .starnotebook.txt files in a directory</div></div>
             <button class="st-btn" id="btn-todisk">Choose dir</button>
           </div>
           <div class="s-row">
@@ -862,6 +1003,96 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
   <button id="disk-banner-dismiss" style="padding:4px 8px;border-radius:3px;border:1px solid var(--bdr);color:var(--tx2);background:transparent;cursor:pointer;font-size:12px">Dismiss</button>
 </div>
 
+<div id="task-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">
+        <strong id="task-modal-title">Task details</strong>
+        <span class="modal-sub" id="task-modal-sub">T-1</span>
+      </div>
+      <button class="icon-btn" id="task-modal-close" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-grid">
+        <div class="modal-field full">
+          <label class="modal-label" for="task-title">Title</label>
+          <div class="modal-row">
+            <input id="task-title" class="modal-input" autocomplete="off">
+            <button class="icon-btn" id="task-title-mic" title="Dictate title">🎙️</button>
+          </div>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" for="task-status">Status</label>
+          <select id="task-status" class="modal-select"></select>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" for="task-priority">Priority</label>
+          <select id="task-priority" class="modal-select">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" for="task-due-date">Due date</label>
+          <input id="task-due-date" class="modal-input" type="date">
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" for="task-reminder">Reminder lead</label>
+          <select id="task-reminder" class="modal-select">
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+            <option value="0">At due time</option>
+            <option value="-1">Disable</option>
+          </select>
+        </div>
+        <div class="modal-field full">
+          <label class="modal-label" for="task-desc">Details</label>
+          <div class="modal-row" style="align-items:flex-start">
+            <textarea id="task-desc" class="modal-textarea"></textarea>
+            <button class="icon-btn" id="task-desc-mic" title="Dictate details">🎙️</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-danger" id="task-delete">Delete</button>
+      <button class="btn-secondary" id="task-cancel">Cancel</button>
+      <button class="btn-primary" id="task-save">Save task</button>
+    </div>
+  </div>
+</div>
+
+<div id="worklog-settings">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">
+        <strong>Worklog settings</strong>
+        <span class="modal-sub">Columns and reminder permissions</span>
+      </div>
+      <button class="icon-btn" id="worklog-settings-close" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field full">
+        <label class="modal-label">Columns</label>
+        <div id="worklog-columns-list" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button class="worklog-col-add" id="worklog-add-column" type="button">＋ Add column</button>
+      </div>
+      <div class="modal-field full">
+        <label class="modal-label">Notifications</label>
+        <div class="modal-row" style="justify-content:space-between;flex-wrap:wrap">
+          <span id="notification-state" style="font-size:12px;color:var(--tx2)">Permission not requested yet</span>
+          <button class="btn-primary" id="notification-enable" type="button">Enable reminders</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="worklog-settings-done">Done</button>
+    </div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script>
@@ -869,7 +1100,7 @@ input#cat-custom-color{position:absolute;opacity:0;width:0;height:0;pointer-even
 // ════════════════════════════
 // DATA
 // ════════════════════════════
-const SK_N='edna3_notes', SK_C='edna3_cfg';
+const SK_N='starnotebook3_notes', SK_C='starnotebook3_cfg';
 
 const DK=[
   {id:'dark',        n:'VS Dark',     sw:['#1e1e1e','#569cd6','#4ec9b0','#dcdcaa']},
@@ -932,11 +1163,10 @@ const LANGS=[
 //   notes[id].order  = sort order
 
 // Notebooks: stored separately
-const SK_NB = 'edna3_notebooks';
+const SK_NB = 'starnotebook3_notebooks';
 let notebooks = [];   // [{id, name, icon, color, open}]
 let sections  = [];   // [{id, nbId, name, color, open}]
 // pages = notes (with nbId/secId/pgId set)
-let navVisible = true;
 
 const NB_COLORS = ['#569cd6','#4ec9b0','#c586c0','#ce9178','#dcdcaa','#f44747','#a6e22e','#66d9e8'];
 const SEC_COLORS = ['#4080b0','#3a9a88','#9a66a0','#a07058','#a0a060','#b03030','#80b020','#48a8c0'];
@@ -946,6 +1176,18 @@ function loadNav() {
 }
 function saveNav() {
   try { localStorage.setItem(SK_NB, JSON.stringify({notebooks, sections})); } catch(_){}
+  if (disk.mode === 'disk' && disk.dir) {
+    saveNavDisk().catch(console.error);
+  }
+}
+async function saveNavDisk() {
+  if (!disk.dir) return;
+  try {
+    const nh = await disk.dir.getFileHandle('.starnotebook-nav.json', {create:true});
+    const nw = await nh.createWritable();
+    await nw.write(JSON.stringify({notebooks, sections}, null, 2));
+    await nw.close();
+  } catch(e) { console.error('Failed to save nav to disk:', e); }
 }
 
 function mkNbId() { return 'nb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
@@ -1187,7 +1429,7 @@ function buildPageEl(noteId, secId, withSubs) {
 
   const iconSpan = document.createElement('span');
   iconSpan.className = 'pg-icon';
-  iconSpan.textContent = hasSubs ? (n._pgOpen ? '▾' : '▸') : '◦';
+  iconSpan.textContent = n.type==='worklog' ? '📋' : (hasSubs ? (n._pgOpen ? '▾' : '▸') : '◦');
 
   const nameSpan = document.createElement('span');
   nameSpan.className = 'pg-name';
@@ -1242,7 +1484,7 @@ function buildPageEl(noteId, secId, withSubs) {
 
       const subIcon = document.createElement('span');
       subIcon.className = 'subpg-icon';
-      subIcon.textContent = '◦';
+      subIcon.textContent = sub.type==='worklog' ? '📋' : '◦';
 
       const subName = document.createElement('span');
       subName.className = 'subpg-name';
@@ -1334,7 +1576,16 @@ function startNavRename(id, type) {
     const val = inp.value.trim() || old;
     if (type === 'nb')  { const nb  = notebooks.find(n=>n.id===id); if (nb)  { nb.name  = val; saveNav(); } }
     else if (type === 'sec') { const sec = sections.find(s=>s.id===id);  if (sec) { sec.name = val; saveNav(); } }
-    else { if (notes[id]) { notes[id].name = val; sched(); } }
+    else {
+      if (notes[id]) {
+        const oldName = notes[id].name;
+        notes[id].name = val;
+        if (disk.mode === 'disk' && disk.dir && oldName !== val) {
+          disk.dir.removeEntry(sfn(oldName) + '.starnotebook.txt').catch(()=>{});
+        }
+        sched(id);
+      }
+    }
     renderNav(q('nav-search').value);
     if (curId === id) {
       q('btn-notename').textContent = val;
@@ -1661,15 +1912,8 @@ window.movePgToSection = pgId => {
 function toggleNav() {
   navVisible = !navVisible;
   const nav = q('nav');
-  const resize = q('nav-resize');
-  if (navVisible) {
-    nav.classList.remove('collapsed');
-    resize.style.display = '';
-  } else {
-    nav.classList.add('collapsed');
-    resize.style.display = 'none';
-  }
-  try { localStorage.setItem('edna3_nav', JSON.stringify({visible:navVisible, width:nav.style.width})); } catch(_){}
+  syncMobileNav();
+  try { localStorage.setItem('starnotebook3_nav', JSON.stringify({visible:navVisible, width:nav.style.width})); } catch(_){}
 }
 
 // ════════════════════════════
@@ -1680,6 +1924,7 @@ function initNavResize() {
   const nav    = q('nav');
   let dragging=false, startX=0, startW=0;
   handle.addEventListener('mousedown', e => {
+    if(isMobileView()) return;
     dragging=true; startX=e.clientX; startW=nav.offsetWidth;
     handle.classList.add('dragging');
     document.body.style.cursor='col-resize';
@@ -1694,7 +1939,7 @@ function initNavResize() {
     if (!dragging) return;
     dragging=false; handle.classList.remove('dragging');
     document.body.style.cursor=''; document.body.style.userSelect='';
-    try { const s=JSON.parse(localStorage.getItem('edna3_nav')||'{}'); s.width=nav.style.width; localStorage.setItem('edna3_nav',JSON.stringify(s)); } catch(_){}
+    try { const s=JSON.parse(localStorage.getItem('starnotebook3_nav')||'{}'); s.width=nav.style.width; localStorage.setItem('starnotebook3_nav',JSON.stringify(s)); } catch(_){}
   });
 }
 
@@ -1705,23 +1950,45 @@ const DC={theme:'dark',font:'jetbrains',sz:14,lh:1.6,wrap:'pre-wrap',ts:2,ln:fal
 let cfg={...DC}, notes={}, curId=null, svTimer=null;
 let disk={mode:'browser',dir:null};
 let palSel=0, lmTarget=null;
+const WORKLOG_DEFAULT_COLUMNS=['Backlog','To Do','In Progress','Completed'];
+const WORKLOG_PRIORITY_ORDER={low:0,medium:1,high:2,urgent:3};
+let navVisible = true;
+let dictationSession = null;
+let reminderTimer = null;
+let currentTaskCtx = null;
 
 // ════════════════════════════
 // PERSIST
 // ════════════════════════════
 function load(){
-  try{const r=localStorage.getItem(SK_N);if(r)notes=JSON.parse(r);}catch(_){}
+  try{
+    const r=localStorage.getItem(SK_N);
+    if(r){
+      notes=JSON.parse(r);
+      Object.values(notes).forEach(ensureNoteShape);
+    }
+  }catch(_){}
   try{const r=localStorage.getItem(SK_C);if(r)cfg={...DC,...JSON.parse(r)};}catch(_){}
 }
-function saveNotes(){
-  if(disk.mode==='disk'&&disk.dir) saveDisk().catch(console.error);
+let pendingSaveNotes = new Set();
+function saveNotes(specificNoteId){
+  if(disk.mode==='disk'&&disk.dir) saveDisk(specificNoteId).catch(console.error);
   else try{localStorage.setItem(SK_N,JSON.stringify(notes));}catch(_){}
 }
 function saveCfg(){try{localStorage.setItem(SK_C,JSON.stringify(cfg));}catch(_){}}
-function sched(){
+function sched(noteId){
+  if (noteId) pendingSaveNotes.add(noteId);
   clearTimeout(svTimer);
   q('sb-sv').textContent='saving…';
-  svTimer=setTimeout(()=>{saveNotes();q('sb-sv').textContent='saved';},400);
+  svTimer=setTimeout(()=>{
+    if (pendingSaveNotes.size > 0) {
+      pendingSaveNotes.forEach(nid => saveNotes(nid));
+      pendingSaveNotes.clear();
+    } else {
+      saveNotes();
+    }
+    q('sb-sv').textContent='saved';
+  },400);
 }
 
 // ════════════════════════════
@@ -1735,14 +2002,85 @@ const mkBid=()=>uid('b');
 // DOM shorthand
 // ════════════════════════════
 const q=id=>document.getElementById(id);
-const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function placeCaretAtEnd(el) {
+  el.focus();
+  if (typeof window.getSelection !== "undefined"
+      && typeof document.createRange !== "undefined") {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+}
+
+function isMobileView(){ return window.matchMedia('(max-width: 768px)').matches; }
+function fmtDate(v){
+  if(!v) return 'No due date';
+  const d = new Date(v+'T12:00:00');
+  return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+function taskBadgeClass(priority){ return `pri-chip pri-${priority||'medium'}`; }
+function taskStatusClass(){ return 'status-chip'; }
+function worklogColumns(note){
+  note.columns = Array.isArray(note.columns) && note.columns.length ? note.columns : [...WORKLOG_DEFAULT_COLUMNS];
+  return note.columns;
+}
+function normalizeTask(task, note){
+  const cols = worklogColumns(note);
+  const fallbackStatus = cols[1] || cols[0] || 'To Do';
+  return {
+    id: task.id || uid('task'),
+    key: task.key || `T-${(task.seq || 0) || 1}`,
+    title: task.title || 'Untitled task',
+    description: task.description || '',
+    status: cols.includes(task.status) ? task.status : fallbackStatus,
+    priority: ['low','medium','high','urgent'].includes(task.priority) ? task.priority : 'medium',
+    dueDate: task.dueDate || '',
+    reminderLeadMinutes: task.reminderLeadMinutes === undefined ? 60 : Number(task.reminderLeadMinutes),
+    created: task.created || Date.now(),
+    updated: task.updated || Date.now()
+  };
+}
+function ensureNoteShape(note){
+  if(!note) return note;
+  if(!Array.isArray(note.blocks) || !note.blocks.length) note.blocks=[mkBlk('text')];
+  note.type = note.type || 'note';
+  note.worklogView = note.worklogView || 'board';
+  note.taskSeq = Number(note.taskSeq || 0);
+  note.reminderState = note.reminderState || {};
+  if(note.type==='worklog'){
+    worklogColumns(note);
+    note.tasks = Array.isArray(note.tasks) ? note.tasks.map(t=>normalizeTask(t,note)) : [];
+  }
+  return note;
+}
+function notesWithWorklogs(){
+  return Object.values(notes).filter(n=>n?.type==='worklog');
+}
+function findTaskRef(ref){
+  const all = notesWithWorklogs();
+  for(const note of all){
+    const task = (note.tasks||[]).find(t=>t.key===ref);
+    if(task) return {note, task};
+  }
+  return null;
+}
+function collectTaskRefs(text){
+  const refs = [...new Set(String(text||'').match(/\bT-\d+\b/g) || [])];
+  return refs.map(findTaskRef).filter(Boolean);
+}
 
 // ════════════════════════════
 // NOTE CRUD
 // ════════════════════════════
 function mkNote(name){
   const id=mkNid();
-  notes[id]={id,name:name||'New Note',blocks:[{id:mkBid(),type:'text',content:''}],created:Date.now(),updated:Date.now()};
+  notes[id]=ensureNoteShape({id,name:name||'New Note',type:'note',blocks:[{id:mkBid(),type:'text',content:''}],created:Date.now(),updated:Date.now(),tasks:[],taskSeq:0,columns:[...WORKLOG_DEFAULT_COLUMNS],worklogView:'board',reminderState:{}});
   return notes[id];
 }
 function delNote(id){
@@ -1775,7 +2113,19 @@ function evalM(e){
 function renderMd(raw){
   if(!raw)return'';
   let s=raw;
-  s=s.replace(/```[\w]*\n?([\s\S]*?)```/g,(_,c)=>`<pre><code>${esc(c)}</code></pre>`);
+  s=s.replace(/```(\w*)\n?([\s\S]*?)```/g,(_,lang,c)=>{
+    let highlighted;
+    if (lang && typeof hljs !== 'undefined') {
+      try {
+        highlighted = hljs.highlight(c, {language: lang, ignoreIllegals: true}).value;
+      } catch(_) {
+        highlighted = esc(c);
+      }
+    } else {
+      highlighted = esc(c);
+    }
+    return `<pre><code class="hljs language-${lang}">${highlighted}</code></pre>`;
+  });
   s=s.replace(/`([^`\n]+)`/g,(_,c)=>`<code>${esc(c)}</code>`);
   s=s.replace(/^# (.+)$/gm,(_,t)=>`<h1>${t}</h1>`);
   s=s.replace(/^## (.+)$/gm,(_,t)=>`<h2>${t}</h2>`);
@@ -1868,6 +2218,14 @@ function renderBlk(blk,note){
     b.onclick=e=>{e.stopPropagation();fn();};
     acts.appendChild(b);
   };
+  const addMicBtn=()=>{
+    const b=document.createElement('button');
+    b.className='ab';
+    b.textContent='mic';
+    b.title='Dictate into this block';
+    b.onclick=e=>{e.stopPropagation();startDictation(cont,b);};
+    acts.appendChild(b);
+  };
 
   sep.addEventListener('contextmenu',e=>{e.preventDefault();showBCtx(e,blk.id);});
 
@@ -1884,6 +2242,7 @@ function renderBlk(blk,note){
   if(blk.type==='markdown'){
     const pv=blk._pv;
     addAb(pv?'edit':'preview','Toggle preview',()=>{blk._pv=!blk._pv;rerBlk(blk.id);});
+    addMicBtn();
     addAb('lang','Change language',()=>openLM(0,0,blk.id));
     addAb('↑','Move up',()=>bUp(blk.id));
     addAb('↓','Move down',()=>bDn(blk.id));
@@ -1900,6 +2259,7 @@ function renderBlk(blk,note){
     body.appendChild(cont);
 
   } else if(blk.type==='math'){
+    addMicBtn();
     addAb('lang','Change language',()=>openLM(0,0,blk.id));
     addAb('↑','Move up',()=>bUp(blk.id));
     addAb('↓','Move down',()=>bDn(blk.id));
@@ -1917,6 +2277,7 @@ function renderBlk(blk,note){
   } else if(blk.type==='todo'){
     const em=blk._etd;
     addAb(em?'done':'edit','Edit raw text',()=>tdEditToggle(blk.id));
+    addMicBtn();
     addAb('lang','Change language',()=>openLM(0,0,blk.id));
     addAb('↑','Move up',()=>bUp(blk.id));
     addAb('↓','Move down',()=>bDn(blk.id));
@@ -1932,19 +2293,69 @@ function renderBlk(blk,note){
 
   } else {
     // code / text
+    addMicBtn();
     addAb('lang','Change language',()=>openLM(0,0,blk.id));
     addAb('↑','Move up',()=>bUp(blk.id));
     addAb('↓','Move down',()=>bDn(blk.id));
     addAb('dup','Duplicate',()=>bDup(blk.id));
     addAb('fmt','Format',()=>bFmt(blk.id));
     addAb('del','Delete',()=>bDel(blk.id),true);
-    cont.contentEditable='true'; cont.textContent=blk.content;
-    cont.dataset.ph=info.lbl+' block…';
-    if(cfg.ln){gt.innerHTML=gutter(blk.content);body.appendChild(gt);}
-    body.appendChild(cont);
+
+    const isCode = blk.type !== 'text';
+    const isEditing = !isCode || blk._editing;
+
+    if (isCode && !isEditing) {
+      cont.contentEditable='false';
+      let highlighted;
+      try {
+        if (typeof hljs !== 'undefined') {
+          highlighted = hljs.highlight(blk.content || '', {language: blk.type, ignoreIllegals: true}).value;
+        } else {
+          highlighted = esc(blk.content);
+        }
+      } catch(_) {
+        highlighted = esc(blk.content);
+      }
+      cont.innerHTML = `<code class="hljs language-${blk.type}">${highlighted}</code>`;
+      cont.style.cursor = 'text';
+
+      // Click to edit
+      cont.addEventListener('click', e => {
+        e.stopPropagation();
+        blk._editing = true;
+        rerBlk(blk.id);
+        const editableEl = document.querySelector(`[data-bid="${blk.id}"]`);
+        if (editableEl) {
+          placeCaretAtEnd(editableEl);
+        }
+      });
+      if(cfg.ln){gt.innerHTML=gutter(blk.content);body.appendChild(gt);}
+      body.appendChild(cont);
+    } else {
+      cont.contentEditable='true'; cont.textContent=blk.content;
+      cont.dataset.ph=info.lbl+' block…';
+      if (isCode) {
+        // Blur to preview/highlight
+        cont.addEventListener('blur', () => {
+          setTimeout(() => {
+            const activeEl = document.activeElement;
+            if (activeEl !== cont) {
+              blk._editing = false;
+              rerBlk(blk.id);
+            }
+          }, 150);
+        });
+      }
+      if(cfg.ln){gt.innerHTML=gutter(blk.content);body.appendChild(gt);}
+      body.appendChild(cont);
+    }
   }
 
   wrap.appendChild(sep); wrap.appendChild(body);
+  if(note.type!=='worklog' && ['text','markdown','todo'].includes(blk.type)){
+    const refs = renderTaskRefs(blk.content);
+    if(refs) wrap.appendChild(refs);
+  }
   setupL(cont,blk,note);
   return wrap;
 }
@@ -1960,7 +2371,7 @@ function setupL(el,blk,note){
       if(g)g.innerHTML=gutter(blk.content);
     }
     if(blk.type==='math'){const r=document.querySelector(`[data-mr="${blk.id}"]`);if(r)updateMR(blk.content,r);}
-    updateSB(); sched();
+    updateSB(); sched(note.id);
   });
   el.addEventListener('keydown',e=>{
     if(e.key==='Tab'){e.preventDefault();document.execCommand('insertText',false,' '.repeat(cfg.ts));}
@@ -1984,7 +2395,7 @@ function addAfter(afterId,type){
   const nb=mkBlk(type||'text');
   const i=note.blocks.findIndex(b=>b.id===afterId);
   if(i>=0)note.blocks.splice(i+1,0,nb);else note.blocks.push(nb);
-  note.updated=Date.now();sched();renderNote();
+  note.updated=Date.now();sched(note.id);renderNote();
   setTimeout(()=>{document.querySelector(`[data-bid="${nb.id}"]`)?.focus();},30);
 }
 
@@ -1992,7 +2403,7 @@ function bDel(id){
   const note=notes[curId];if(!note)return;
   if(note.blocks.length<=1){toast('Cannot delete the only block','err');return;}
   const i=note.blocks.findIndex(b=>b.id===id);
-  note.blocks.splice(i,1);note.updated=Date.now();sched();renderNote();
+  note.blocks.splice(i,1);note.updated=Date.now();sched(note.id);renderNote();
   const ni=Math.min(i,note.blocks.length-1);
   setTimeout(()=>{document.querySelector(`[data-bid="${note.blocks[ni]?.id}"]`)?.focus();},30);
 }
@@ -2001,7 +2412,7 @@ function bUp(id){
   const note=notes[curId];if(!note)return;
   const i=note.blocks.findIndex(b=>b.id===id);if(i<=0)return;
   [note.blocks[i-1],note.blocks[i]]=[note.blocks[i],note.blocks[i-1]];
-  note.updated=Date.now();sched();renderNote();
+  note.updated=Date.now();sched(note.id);renderNote();
   setTimeout(()=>{document.querySelector(`[data-bid="${id}"]`)?.focus();},30);
 }
 
@@ -2009,7 +2420,7 @@ function bDn(id){
   const note=notes[curId];if(!note)return;
   const i=note.blocks.findIndex(b=>b.id===id);if(i>=note.blocks.length-1)return;
   [note.blocks[i],note.blocks[i+1]]=[note.blocks[i+1],note.blocks[i]];
-  note.updated=Date.now();sched();renderNote();
+  note.updated=Date.now();sched(note.id);renderNote();
   setTimeout(()=>{document.querySelector(`[data-bid="${id}"]`)?.focus();},30);
 }
 
@@ -2018,14 +2429,14 @@ function bDup(id){
   const b=note.blocks.find(b=>b.id===id);if(!b)return;
   const nb={...mkBlk(b.type),content:b.content};
   const i=note.blocks.findIndex(x=>x.id===id);
-  note.blocks.splice(i+1,0,nb);note.updated=Date.now();sched();renderNote();toast('Block duplicated');
+  note.blocks.splice(i+1,0,nb);note.updated=Date.now();sched(note.id);renderNote();toast('Block duplicated');
 }
 
 function bFmt(id){
   const note=notes[curId];if(!note)return;
   const b=note.blocks.find(x=>x.id===id);if(!b)return;
   if(b.type==='json'){
-    try{b.content=JSON.stringify(JSON.parse(b.content),null,2);sched();rerBlk(id);toast('JSON formatted','ok');}
+    try{b.content=JSON.stringify(JSON.parse(b.content),null,2);sched(note.id);rerBlk(id);toast('JSON formatted','ok');}
     catch(e){toast('Invalid JSON: '+e.message,'err');}
   } else if(b.type==='markdown'){b._pv=!b._pv;rerBlk(id);}
   else toast('No formatter for '+b.type);
@@ -2035,7 +2446,7 @@ function tdEditToggle(id){
   const note=notes[curId];if(!note)return;
   const b=note.blocks.find(x=>x.id===id);if(!b)return;
   if(b._etd){const el=document.querySelector(`[data-bid="${id}"]`);if(el)b.content=el.textContent;}
-  b._etd=!b._etd;sched();rerBlk(id);
+  b._etd=!b._etd;sched(note.id);rerBlk(id);
 }
 
 function rerBlk(id){
@@ -2045,6 +2456,445 @@ function rerBlk(id){
   old.replaceWith(renderBlk(b,note));
 }
 
+function insertTextIntoField(target, text){
+  if(!target || !text) return;
+  const value = String(text).trim();
+  if(!value) return;
+  if(target.isContentEditable){
+    target.focus();
+    document.execCommand('insertText', false, value + ' ');
+    target.dispatchEvent(new Event('input', {bubbles:true}));
+    return;
+  }
+  const start = target.selectionStart ?? target.value.length;
+  const end = target.selectionEnd ?? target.value.length;
+  const before = target.value.slice(0,start);
+  const after = target.value.slice(end);
+  const spacer = before && !/\s$/.test(before) ? ' ' : '';
+  target.value = `${before}${spacer}${value} ${after}`.trimEnd();
+  const caret = (before + spacer + value + ' ').length;
+  if(typeof target.setSelectionRange === 'function') target.setSelectionRange(caret, caret);
+  target.dispatchEvent(new Event('input', {bubbles:true}));
+}
+function stopDictation(){
+  if(dictationSession?.recognition){
+    dictationSession.stoppedManually = true;
+    try{ dictationSession.recognition.stop(); } catch(_){}
+  }
+  document.querySelectorAll('.icon-btn.recording').forEach(el=>el.classList.remove('recording'));
+  dictationSession = null;
+}
+function startDictation(target, button){
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRec){ toast('Speech dictation is not supported in this browser','err'); return; }
+  if(dictationSession?.target===target){ stopDictation(); return; }
+  stopDictation();
+  const recognition = new SpeechRec();
+  recognition.lang = navigator.language || 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  let finalTranscript = '';
+  dictationSession = {recognition,target,button,stoppedManually:false};
+  button?.classList.add('recording');
+  recognition.onresult = e => {
+    let interim = '';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const chunk = e.results[i][0]?.transcript || '';
+      if(e.results[i].isFinal) finalTranscript += chunk + ' ';
+      else interim += chunk;
+    }
+    if(finalTranscript){
+      insertTextIntoField(target, finalTranscript);
+      finalTranscript = '';
+    }
+    if(interim && target && !target.isContentEditable){
+      target.dataset.dictationPreview = interim;
+    }
+  };
+  recognition.onerror = e => {
+    stopDictation();
+    toast(e.error==='not-allowed'?'Microphone access was blocked':'Dictation stopped: '+e.error,'err');
+  };
+  recognition.onend = () => {
+    const manual = dictationSession?.stoppedManually;
+    stopDictation();
+    if(!manual) toast('Dictation finished','ok');
+  };
+  try{
+    recognition.start();
+    toast('Listening…','ok');
+  }catch(_){
+    stopDictation();
+    toast('Could not start dictation','err');
+  }
+}
+function isNotificationGranted(){
+  return 'Notification' in window && Notification.permission === 'granted';
+}
+async function requestNotificationAccess(){
+  if(!('Notification' in window)){ toast('System notifications are not supported here','err'); return false; }
+  const perm = await Notification.requestPermission();
+  updateNotificationState();
+  if(perm==='granted'){ toast('System reminders enabled','ok'); return true; }
+  toast('Notifications blocked. In-app reminder toasts will be used instead','warn');
+  return false;
+}
+function updateNotificationState(){
+  const el = q('notification-state');
+  if(!el || !('Notification' in window)) return;
+  const state = Notification.permission;
+  el.textContent = state==='granted' ? 'System notifications enabled' : state==='denied' ? 'Notifications blocked, using in-app alerts' : 'Permission not requested yet';
+}
+function taskReminderKey(note,task){
+  const due = task.dueDate || 'none';
+  return `${task.id}:${due}:${task.reminderLeadMinutes}`;
+}
+async function showReminder(task, note, message){
+  const title = `${task.key} • ${task.title}`;
+  if(isNotificationGranted()){
+    try{
+      const reg = await navigator.serviceWorker?.ready;
+      if(reg?.showNotification) await reg.showNotification(title,{body:message,tag:`starnotebook-${task.id}`,icon:'192x192.png',badge:'192x192.png'});
+      else new Notification(title,{body:message});
+      return;
+    }catch(_){}
+  }
+  toast(`${title}: ${message}`,'warn');
+}
+function reminderMessage(task){
+  if(!task.dueDate) return '';
+  const due = new Date(task.dueDate+'T09:00:00');
+  const today = new Date();
+  const todayKey = isoDate(today);
+  if(task.dueDate===todayKey) return 'Due today';
+  if(due < today) return 'Past due';
+  return `Due ${fmtDate(task.dueDate)}`;
+}
+function scanReminders(){
+  const now = Date.now();
+  notesWithWorklogs().forEach(note=>{
+    ensureNoteShape(note);
+    (note.tasks||[]).forEach(task=>{
+      if(!task.dueDate || task.status==='Completed' || Number(task.reminderLeadMinutes) < 0) return;
+      const dueTs = new Date(task.dueDate+'T09:00:00').getTime();
+      const leadMs = Number(task.reminderLeadMinutes || 0) * 60 * 1000;
+      const dueToday = task.dueDate === isoDate(new Date());
+      const shouldFire = (now >= dueTs - leadMs && now <= dueTs + 24*60*60*1000) || dueToday;
+      const stateKey = taskReminderKey(note,task);
+      if(shouldFire && note.reminderState?.[stateKey] !== task.dueDate){
+        note.reminderState[stateKey] = task.dueDate;
+        saveNotes(note.id);
+        showReminder(task, note, reminderMessage(task) || 'Upcoming task reminder');
+      }
+    });
+  });
+}
+function startReminderScheduler(){
+  if(reminderTimer) clearInterval(reminderTimer);
+  scanReminders();
+  reminderTimer = setInterval(scanReminders, 60000);
+}
+function createWorklogNote(name){
+  const note = mkNote(name || 'New Worklog');
+  note.type = 'worklog';
+  note.blocks = [{id:mkBid(),type:'markdown',content:'## Worklog overview\n\nCapture context, meeting notes, and task links here.'}];
+  note.columns = [...WORKLOG_DEFAULT_COLUMNS];
+  note.tasks = [];
+  note.taskSeq = 0;
+  note.worklogView = 'board';
+  note.reminderState = {};
+  ensureNoteShape(note);
+  return note;
+}
+function nextTaskKey(note){
+  note.taskSeq = Number(note.taskSeq || 0) + 1;
+  return `T-${note.taskSeq}`;
+}
+function createTask(note, seed={}){
+  const cols = worklogColumns(note);
+  const task = normalizeTask({
+    id: uid('task'),
+    key: nextTaskKey(note),
+    title: seed.title || 'New task',
+    description: seed.description || '',
+    status: seed.status || cols[1] || cols[0],
+    priority: seed.priority || 'medium',
+    dueDate: seed.dueDate || '',
+    reminderLeadMinutes: seed.reminderLeadMinutes === undefined ? 60 : seed.reminderLeadMinutes,
+    created: Date.now(),
+    updated: Date.now()
+  }, note);
+  note.tasks.push(task);
+  note.updated = Date.now();
+  sched(note.id);
+  return task;
+}
+function findTask(note, taskId){
+  return (note.tasks||[]).find(t=>t.id===taskId);
+}
+function saveTaskModal(){
+  const note = notes[currentTaskCtx?.noteId];
+  if(!note) return;
+  const task = findTask(note,currentTaskCtx.taskId);
+  if(!task) return;
+  task.title = q('task-title').value.trim() || task.title;
+  task.status = q('task-status').value;
+  task.priority = q('task-priority').value;
+  task.dueDate = q('task-due-date').value;
+  task.reminderLeadMinutes = Number(q('task-reminder').value);
+  task.description = q('task-desc').value;
+  task.updated = Date.now();
+  note.updated = Date.now();
+  sched(note.id);
+  closeTaskModal();
+  renderNote();
+}
+function openTaskModal(noteId, taskId){
+  const note = notes[noteId];
+  if(!note) return;
+  ensureNoteShape(note);
+  const task = findTask(note, taskId);
+  if(!task) return;
+  currentTaskCtx = {noteId,taskId};
+  q('task-modal-title').textContent = task.title || 'Task details';
+  q('task-modal-sub').textContent = `${task.key} • ${note.name}`;
+  q('task-title').value = task.title || '';
+  const statusSel = q('task-status');
+  statusSel.innerHTML = worklogColumns(note).map(col=>`<option value="${esc(col)}">${esc(col)}</option>`).join('');
+  statusSel.value = task.status;
+  q('task-priority').value = task.priority;
+  q('task-due-date').value = task.dueDate || '';
+  q('task-reminder').value = String(task.reminderLeadMinutes ?? 60);
+  q('task-desc').value = task.description || '';
+  q('task-modal').classList.add('open');
+}
+function closeTaskModal(){
+  stopDictation();
+  currentTaskCtx = null;
+  q('task-modal').classList.remove('open');
+}
+function deleteTaskFromModal(){
+  const note = notes[currentTaskCtx?.noteId];
+  if(!note) return;
+  note.tasks = (note.tasks||[]).filter(t=>t.id!==currentTaskCtx.taskId);
+  note.updated = Date.now();
+  sched(note.id);
+  closeTaskModal();
+  renderNote();
+}
+function renderTaskRefs(content){
+  const refs = collectTaskRefs(content);
+  if(!refs.length) return null;
+  const row = document.createElement('div');
+  row.className = 'task-ref-row';
+  row.innerHTML = '<span class="task-ref-label">Linked tasks</span>';
+  refs.forEach(({note,task})=>{
+    const btn = document.createElement('button');
+    btn.className = 'task-ref';
+    btn.textContent = `${task.key} ${task.title}`;
+    btn.onclick = () => {
+      curId = note.id;
+      renderNav(q('nav-search').value);
+      renderNote();
+      openTaskModal(note.id, task.id);
+    };
+    row.appendChild(btn);
+  });
+  return row;
+}
+function renderWorklogBoard(note){
+  const shell = document.createElement('div');
+  shell.className = 'worklog-grid';
+  worklogColumns(note).forEach(col=>{
+    const lane = document.createElement('section');
+    lane.className = 'worklog-col';
+    lane.dataset.status = col;
+    lane.innerHTML = `<div class="worklog-col-head"><div><div class="worklog-col-title">${esc(col)}</div><div class="worklog-count">${(note.tasks||[]).filter(t=>t.status===col).length} tasks</div></div><button class="chip-btn">＋ Task</button></div>`;
+    lane.querySelector('button').onclick = () => {
+      const task = createTask(note,{status:col});
+      renderNote();
+      openTaskModal(note.id, task.id);
+    };
+    const list = document.createElement('div');
+    list.className = 'worklog-card-list';
+    list.addEventListener('dragover',e=>e.preventDefault());
+    list.addEventListener('drop',e=>{
+      e.preventDefault();
+      const taskId = e.dataTransfer.getData('taskId');
+      const task = findTask(note,taskId);
+      if(task){
+        task.status = col;
+        task.updated = Date.now();
+        note.updated = Date.now();
+        sched(note.id);
+        renderNote();
+      }
+    });
+    const items = (note.tasks||[])
+      .filter(t=>t.status===col)
+      .sort((a,b)=>(WORKLOG_PRIORITY_ORDER[b.priority]-WORKLOG_PRIORITY_ORDER[a.priority]) || ((a.dueDate||'9999').localeCompare(b.dueDate||'9999')));
+    if(!items.length){
+      const empty = document.createElement('div');
+      empty.className = 'worklog-empty';
+      empty.textContent = 'Drop tasks here';
+      list.appendChild(empty);
+    }
+    items.forEach(task=>{
+      const card = document.createElement('article');
+      card.className = 'worklog-card';
+      card.draggable = true;
+      card.innerHTML = `<div class="worklog-card-head"><div><div class="worklog-card-key">${task.key}</div><div class="worklog-card-title">${esc(task.title)}</div></div><span class="${taskBadgeClass(task.priority)}">${esc(task.priority)}</span></div><div class="worklog-card-meta"><span class="${taskStatusClass(task.status)}">${esc(task.status)}</span><span class="due-pill">${esc(fmtDate(task.dueDate))}</span></div>`;
+      card.addEventListener('dragstart',e=>{ card.classList.add('dragging'); e.dataTransfer.setData('taskId',task.id); });
+      card.addEventListener('dragend',()=>card.classList.remove('dragging'));
+      card.onclick = ()=>openTaskModal(note.id,task.id);
+      list.appendChild(card);
+    });
+    lane.appendChild(list);
+    shell.appendChild(lane);
+  });
+  return shell;
+}
+function renderWorklogTable(note){
+  const wrap = document.createElement('div');
+  wrap.className = 'worklog-table-wrap';
+  const rows = (note.tasks||[]).map(task=>`
+    <tr data-task-id="${task.id}">
+      <td><button class="task-ref">${task.key}</button></td>
+      <td><input data-field="title" value="${esc(task.title)}"></td>
+      <td><select data-field="status">${worklogColumns(note).map(col=>`<option value="${esc(col)}"${task.status===col?' selected':''}>${esc(col)}</option>`).join('')}</select></td>
+      <td><select data-field="priority">${['low','medium','high','urgent'].map(p=>`<option value="${p}"${task.priority===p?' selected':''}>${p}</option>`).join('')}</select></td>
+      <td><input data-field="dueDate" type="date" value="${task.dueDate||''}"></td>
+      <td><button class="icon-btn" data-open="${task.id}" title="Open task">↗</button></td>
+    </tr>`).join('');
+  wrap.innerHTML = `<table class="worklog-table"><thead><tr><th>Key</th><th>Task</th><th>Status</th><th>Priority</th><th>Due</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="6"><div class="worklog-empty">No tasks yet</div></td></tr>'}</tbody></table>`;
+  wrap.querySelectorAll('tbody tr').forEach(tr=>{
+    const task = findTask(note,tr.dataset.taskId);
+    if(!task) return;
+    tr.querySelector('.task-ref')?.addEventListener('click',()=>openTaskModal(note.id,task.id));
+    tr.querySelectorAll('[data-field]').forEach(input=>{
+      input.addEventListener('change',()=>{
+        task[input.dataset.field] = input.value;
+        task.updated = Date.now();
+        note.updated = Date.now();
+        sched(note.id);
+        renderNote();
+      });
+    });
+    tr.querySelector('[data-open]')?.addEventListener('click',()=>openTaskModal(note.id,task.id));
+  });
+  return wrap;
+}
+function monthMatrix(anchor){
+  const base = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const start = new Date(base);
+  start.setDate(1 - base.getDay());
+  const days = [];
+  for(let i=0;i<42;i++){
+    const day = new Date(start);
+    day.setDate(start.getDate()+i);
+    days.push(day);
+  }
+  return {base,days};
+}
+function renderWorklogCalendar(note){
+  const state = note._calendarAnchor ? new Date(note._calendarAnchor) : new Date();
+  const {base,days} = monthMatrix(state);
+  note._calendarAnchor = base.toISOString();
+  const wrap = document.createElement('div');
+  wrap.className = 'worklog-calendar';
+  wrap.innerHTML = `<div class="worklog-calendar-head"><button class="chip-btn" id="cal-prev">←</button><div class="worklog-month">${base.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</div><button class="chip-btn" id="cal-next">→</button></div><div class="worklog-calendar-grid">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="worklog-day-label">${d}</div>`).join('')}${days.map(day=>{
+    const key = isoDate(day);
+    const tasks = (note.tasks||[]).filter(t=>t.dueDate===key);
+    const off = day.getMonth()!==base.getMonth();
+    const today = key===isoDate(new Date());
+    return `<div class="worklog-day${off?' off':''}${today?' today':''}" data-day="${key}"><div class="worklog-day-num">${day.getDate()}</div><div class="worklog-day-list">${tasks.map(t=>`<button class="worklog-day-item" data-task="${t.id}">${esc(t.key)} • ${esc(t.title)}</button>`).join('')}</div></div>`;
+  }).join('')}</div>`;
+  wrap.querySelector('#cal-prev').onclick = ()=>{ note._calendarAnchor = new Date(base.getFullYear(),base.getMonth()-1,1).toISOString(); renderNote(); };
+  wrap.querySelector('#cal-next').onclick = ()=>{ note._calendarAnchor = new Date(base.getFullYear(),base.getMonth()+1,1).toISOString(); renderNote(); };
+  wrap.querySelectorAll('[data-task]').forEach(btn=>btn.addEventListener('click',()=>openTaskModal(note.id,btn.dataset.task)));
+  return wrap;
+}
+function renderWorklog(note){
+  ensureNoteShape(note);
+  const wrap = document.createElement('div');
+  wrap.className = 'worklog-shell';
+  wrap.innerHTML = `<div class="worklog-top"><div class="worklog-title"><h2>${esc(note.name)}</h2><div class="worklog-sub">${note.tasks.length} tasks • Saved inside this note file</div></div><div class="worklog-actions"><div class="worklog-view-switch"><button class="view-btn${note.worklogView==='board'?' active':''}" data-view="board">Board</button><button class="view-btn${note.worklogView==='table'?' active':''}" data-view="table">Table</button><button class="view-btn${note.worklogView==='calendar'?' active':''}" data-view="calendar">Calendar</button></div><div class="worklog-tools"><button class="chip-btn" id="new-worklog-task">＋ New task</button><button class="chip-btn" id="open-worklog-settings">Settings</button></div></div></div>`;
+  wrap.querySelectorAll('[data-view]').forEach(btn=>btn.addEventListener('click',()=>{
+    note.worklogView = btn.dataset.view;
+    note.updated = Date.now();
+    sched(note.id);
+    renderNote();
+  }));
+  wrap.querySelector('#new-worklog-task').onclick = ()=>{
+    const task = createTask(note,{});
+    renderNote();
+    openTaskModal(note.id, task.id);
+  };
+  wrap.querySelector('#open-worklog-settings').onclick = ()=>openWorklogSettings(note.id);
+  wrap.appendChild(note.worklogView==='table' ? renderWorklogTable(note) : note.worklogView==='calendar' ? renderWorklogCalendar(note) : renderWorklogBoard(note));
+  note.blocks.forEach(b=>{
+    wrap.appendChild(renderBlk(b,note));
+  });
+  const addRefs = note.tasks.length ? document.createElement('div') : null;
+  if(addRefs){
+    addRefs.className = 'worklog-empty-refs';
+    addRefs.innerHTML = `<span class="task-ref-label">Task keys</span>${note.tasks.slice(0,8).map(t=>`<button class="task-ref" data-task-open="${t.id}">${esc(t.key)}</button>`).join('')}`;
+    addRefs.querySelectorAll('[data-task-open]').forEach(btn=>btn.addEventListener('click',()=>openTaskModal(note.id,btn.dataset.taskOpen)));
+    wrap.appendChild(addRefs);
+  }
+  return wrap;
+}
+function openWorklogSettings(noteId){
+  const note = notes[noteId];
+  if(!note) return;
+  const host = q('worklog-columns-list');
+  host.innerHTML = '';
+  worklogColumns(note).forEach((col,idx)=>{
+    const row = document.createElement('div');
+    row.className = 'modal-row';
+    row.innerHTML = `<input class="modal-input" data-col-idx="${idx}" value="${esc(col)}"><button class="btn-danger" data-remove="${idx}" type="button">Remove</button>`;
+    host.appendChild(row);
+  });
+  host.querySelectorAll('[data-col-idx]').forEach(inp=>inp.addEventListener('change',()=>{
+    note.columns[inp.dataset.colIdx] = inp.value.trim() || note.columns[inp.dataset.colIdx];
+    note.tasks.forEach(task=>{ if(!note.columns.includes(task.status)) task.status = note.columns[0]; });
+    sched(note.id);
+  }));
+  host.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(note.columns.length<=1){ toast('Keep at least one column','err'); return; }
+    const removed = note.columns.splice(Number(btn.dataset.remove),1)[0];
+    note.tasks.forEach(task=>{ if(task.status===removed) task.status = note.columns[0]; });
+    sched(note.id);
+    openWorklogSettings(note.id);
+  }));
+  q('worklog-add-column').onclick = ()=>{
+    note.columns.push(`Column ${note.columns.length+1}`);
+    sched(note.id);
+    openWorklogSettings(note.id);
+  };
+  currentTaskCtx = currentTaskCtx && currentTaskCtx.noteId===noteId ? currentTaskCtx : currentTaskCtx;
+  q('worklog-settings').dataset.noteId = noteId;
+  updateNotificationState();
+  q('worklog-settings').classList.add('open');
+}
+function closeWorklogSettings(){ q('worklog-settings').classList.remove('open'); }
+function syncMobileNav(){
+  const nav = q('nav');
+  const backdrop = q('nav-backdrop');
+  const resize = q('nav-resize');
+  if(isMobileView()){
+    nav.classList.toggle('mobile-open', navVisible);
+    nav.classList.remove('collapsed');
+    backdrop.classList.toggle('open', navVisible);
+    resize.style.display = 'none';
+  } else {
+    nav.classList.remove('mobile-open');
+    backdrop.classList.remove('open');
+    nav.classList.toggle('collapsed', !navVisible);
+    resize.style.display = navVisible ? '' : 'none';
+  }
+}
+
 window.G={
   tdTog(bid,idx,checked){
     const note=notes[curId];if(!note)return;
@@ -2052,7 +2902,7 @@ window.G={
     const lines=b.content.split('\n');
     if(lines[idx]!==undefined){
       lines[idx]=checked?lines[idx].replace(/^\[ \]/i,'[x]'):lines[idx].replace(/^\[x\]/i,'[ ]');
-      b.content=lines.join('\n');sched();
+      b.content=lines.join('\n');sched(note.id);
       const el=document.querySelector(`[data-bid="${bid}"]`);
       if(el)el.innerHTML=todoHTML(b.content,bid);
     }
@@ -2070,24 +2920,31 @@ function renderNote(){
     updateSB(); return;
   }
   const note=notes[curId];
+  ensureNoteShape(note);
   q('btn-notename').textContent=note.name;
   q('sb-note').textContent='📝 '+note.name;
   q('ew').classList.toggle('show-ln',cfg.ln);
-
-  note.blocks.forEach(b=>ec.appendChild(renderBlk(b,note)));
-
-  const row=document.createElement('div'); row.id='add-row';
-  const btn=document.createElement('button'); btn.id='add-btn';
-  btn.innerHTML='<span>＋</span> Add block <span class="kbd">Ctrl+Enter</span>';
-  btn.onclick=()=>{const l=note.blocks[note.blocks.length-1];addAfter(l?.id||'','text');};
-  row.appendChild(btn); ec.appendChild(row);
+  if(note.type==='worklog'){
+    ec.appendChild(renderWorklog(note));
+  } else {
+    note.blocks.forEach(b=>ec.appendChild(renderBlk(b,note)));
+    const row=document.createElement('div'); row.id='add-row';
+    const btn=document.createElement('button'); btn.id='add-btn';
+    btn.innerHTML='<span>＋</span> Add block <span class="kbd">Ctrl+Enter</span>';
+    btn.onclick=()=>{const l=note.blocks[note.blocks.length-1];addAfter(l?.id||'','text');};
+    row.appendChild(btn); ec.appendChild(row);
+  }
   updateSB();
+  if(isMobileView() && navVisible){
+    navVisible = false;
+    syncMobileNav();
+  }
 }
 
 function updateSB(){
   const note=notes[curId];
   const at=note?note.blocks.map(b=>b.content).join('\n'):'';
-  q('sb-blk').textContent=note?(note.blocks.length+' block'+(note.blocks.length!==1?'s':'')):'0 blocks';
+  q('sb-blk').textContent=note?(note.type==='worklog' ? `${note.tasks.length} tasks` : (note.blocks.length+' block'+(note.blocks.length!==1?'s':''))):'0 blocks';
   q('sb-w').textContent=(at.trim()?at.trim().split(/\s+/).length:0)+' words';
   q('sb-c').textContent=at.length+' chars';
   q('sb-ln').textContent='Ln: '+(cfg.ln?'on':'off');
@@ -2109,13 +2966,19 @@ function buildPal(qq){
     fn.forEach(n=>{
       const d=document.createElement('div');d.className='pi'+(n.id===curId?' sel':'');
       const pv=n.blocks.map(b=>b.content).join(' ').replace(/\s+/g,' ').slice(0,50);
-      d.innerHTML=`<span class="pi-ic">📄</span><span class="pi-lb">${esc(n.name)}</span><span class="pi-sb">${esc(pv)}</span>`;
+      d.innerHTML=`<span class="pi-ic">${n.type==='worklog'?'📋':'📄'}</span><span class="pi-lb">${esc(n.name)}</span><span class="pi-sb">${esc(pv)}</span>`;
       d.onclick=()=>{curId=n.id;renderNote();closePal();};
       res.appendChild(d);items.push(d);
     });
   }
   const cmds=[
     {i:'➕',l:'New note',h:'Ctrl+N',fn:()=>{const n=mkNote();curId=n.id;saveNotes();renderNote();closePal();}},
+    {i:'📋',l:'New worklog',fn:()=>{
+      const n=createWorklogNote('New Worklog');
+      const activeSec=sections.find(s=>s.open&&notebooks.find(nb=>nb.id===s.nbId&&nb.open));
+      if(activeSec){ n.secId=activeSec.id; n.nbId=activeSec.nbId; n.pgId=null; }
+      curId=n.id; saveNotes(); renderNote(); renderNav(q('nav-search').value); closePal();
+    }},
     {i:'⚙',l:'Settings',fn:()=>{closePal();openSet();}},
     {i:'🔢',l:'Toggle line numbers',h:'Ctrl+L',fn:gToggleLn},
     {i:'↓',l:'Export all notes',fn:expAll},
@@ -2248,7 +3111,7 @@ function buildSetUI(){
   q('ss-wr').value=cfg.wrap;
   q('ss-ts').value=cfg.ts;
   // storage
-  q('st-cur').textContent=disk.mode==='disk'?'📁 Stored on disk as .edna.txt files':'💾 Browser (localStorage)';
+  q('st-cur').textContent=disk.mode==='disk'?'📁 Stored on disk as .starnotebook.txt files':'💾 Browser (localStorage)';
 }
 
 function syncTog(tid,lid,val,on,off){
@@ -2258,6 +3121,30 @@ function syncTog(tid,lid,val,on,off){
 
 function applyTheme(id){
   cfg.theme=id;document.documentElement.dataset.theme=id;saveCfg();
+  updateHljsTheme(id);
+}
+function updateHljsTheme(id) {
+  const themes = {
+    'dark': 'vs2015.min.css',
+    'monokai': 'monokai-sublime.min.css',
+    'nord': 'nord.min.css',
+    'gruvbox-dark': 'gruvbox-dark.min.css',
+    'catppuccin': 'tokyo-night-dark.min.css',
+    'light': 'vs.min.css',
+    'solarized': 'solarized-light.min.css',
+    'github-light': 'github.min.css',
+    'gruvbox-light': 'gruvbox-light.min.css',
+    'one-light': 'atom-one-light.min.css'
+  };
+  const themeFile = themes[id] || 'vs2015.min.css';
+  let link = q('hljs-theme');
+  if (!link) {
+    link = document.createElement('link');
+    link.id = 'hljs-theme';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  link.href = `https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${themeFile}`;
 }
 function applyFont(id){
   cfg.font=id;document.documentElement.dataset.font=id;saveCfg();reapplyES();
@@ -2278,7 +3165,13 @@ function renNote(id){
   // Fallback: prompt (for unsorted notes not in nav)
   const n=notes[id];if(!n)return;
   const nv=prompt('Rename note:',n.name);
-  if(nv&&nv.trim()){n.name=nv.trim();n.updated=Date.now();sched();
+  if(nv&&nv.trim()){
+    const oldName = n.name;
+    n.name=nv.trim();
+    if (disk.mode === 'disk' && disk.dir && oldName !== n.name) {
+      disk.dir.removeEntry(sfn(oldName) + '.starnotebook.txt').catch(()=>{});
+    }
+    n.updated=Date.now();sched(id);
     if(curId===id){q('btn-notename').textContent=n.name;q('sb-note').textContent='📝 '+n.name;}
     renderNav(q('nav-search').value);
   }
@@ -2380,7 +3273,22 @@ const diskOK = () => 'showDirectoryPicker' in window;
 const sfn = name => (name||'note').replace(/[<>:"/\\|?*\x00-\x1F]/g,'_').trim().slice(0,80)||'note';
 
 function noteToFile(n) {
-  let s = `---starnotebook---\n${JSON.stringify({id:n.id,name:n.name,created:n.created,updated:n.updated})}\n---blocks---\n`;
+  let s = `---starnotebook---\n${JSON.stringify({
+    id: n.id,
+    name: n.name,
+    type: n.type || 'note',
+    created: n.created,
+    updated: n.updated,
+    nbId: n.nbId || null,
+    secId: n.secId || null,
+    pgId: n.pgId || null,
+    order: n.order !== undefined ? n.order : null,
+    tasks: Array.isArray(n.tasks) ? n.tasks : [],
+    taskSeq: n.taskSeq || 0,
+    columns: Array.isArray(n.columns) ? n.columns : undefined,
+    worklogView: n.worklogView || undefined,
+    reminderState: n.reminderState || {}
+  })}\n---blocks---\n`;
   n.blocks.forEach(b => { s += `---block:${b.type}---\n${b.content}\n`; });
   return s;
 }
@@ -2400,39 +3308,60 @@ function fileToNote(text, fname) {
     }
     if (cur) { cur.content=acc.join('\n').replace(/\n$/,''); blocks.push(cur); }
     if (!meta.id)   meta.id   = mkNid();
-    if (!meta.name) meta.name = fname.replace('.edna.txt','').replace('.starnotebook.txt','');
-    return { ...meta, blocks: blocks.length ? blocks : [mkBlk('text')] };
+    if (!meta.name) meta.name = fname.replace('.starnotebook.txt','').replace('.starnotebook.txt','');
+    return ensureNoteShape({ ...meta, blocks: blocks.length ? blocks : [mkBlk('text')] });
   } catch(_) { return null; }
 }
 
-async function saveDisk() {
+async function saveDisk(specificNoteId) {
   if (!disk.dir) return;
-  for (const [, n] of Object.entries(notes)) {
-    const fh = await disk.dir.getFileHandle(sfn(n.name)+'.edna.txt', {create:true});
-    const w  = await fh.createWritable();
-    await w.write(noteToFile(n)); await w.close();
+  if (specificNoteId && notes[specificNoteId]) {
+    const n = notes[specificNoteId];
+    try {
+      const fh = await disk.dir.getFileHandle(sfn(n.name)+'.starnotebook.txt', {create:true});
+      const w  = await fh.createWritable();
+      await w.write(noteToFile(n)); await w.close();
+    } catch(e) { console.error('Failed to save specific note:', e); }
+  } else {
+    for (const [, n] of Object.entries(notes)) {
+      try {
+        const fh = await disk.dir.getFileHandle(sfn(n.name)+'.starnotebook.txt', {create:true});
+        const w  = await fh.createWritable();
+        await w.write(noteToFile(n)); await w.close();
+      } catch(e) { console.error('Failed to save note:', e); }
+    }
   }
   // write index so we can recover IDs on reload
   try {
-    const ih = await disk.dir.getFileHandle('.edna-index.json', {create:true});
+    const ih = await disk.dir.getFileHandle('.starnotebook-index.json', {create:true});
     const iw = await ih.createWritable();
-    const idx = Object.fromEntries(Object.entries(notes).map(([id,n])=>[id, sfn(n.name)+'.edna.txt']));
+    const idx = Object.fromEntries(Object.entries(notes).map(([id,n])=>[id, sfn(n.name)+'.starnotebook.txt']));
     await iw.write(JSON.stringify(idx, null, 2)); await iw.close();
   } catch(_) {}
 }
 
 async function loadDisk(dir) {
   const loaded = {}; let idx = {};
-  try { const f=await(await dir.getFileHandle('.edna-index.json')).getFile(); idx=JSON.parse(await f.text()); } catch(_){}
+  try { const f=await(await dir.getFileHandle('.starnotebook-index.json')).getFile(); idx=JSON.parse(await f.text()); } catch(_){}
+  try {
+    const nf = await (await dir.getFileHandle('.starnotebook-nav.json')).getFile();
+    const navData = JSON.parse(await nf.text());
+    if (navData.notebooks && navData.sections) {
+      notebooks = navData.notebooks;
+      sections = navData.sections;
+      // Sync structure to localStorage without infinitely triggering a write back to disk
+      try { localStorage.setItem(SK_NB, JSON.stringify({notebooks, sections})); } catch(_){}
+    }
+  } catch(_) {}
   for await (const e of dir.values()) {
-    if (e.kind!=='file' || !e.name.endsWith('.edna.txt')) continue;
+    if (e.kind!=='file' || !e.name.endsWith('.starnotebook.txt')) continue;
     try {
       const text = await (await e.getFile()).text();
       const n = fileToNote(text, e.name);
       if (n) {
         const rid = Object.entries(idx).find(([,fn])=>fn===e.name)?.[0];
         if (rid) n.id = rid;
-        loaded[n.id] = n;
+        loaded[n.id] = ensureNoteShape(n);
       }
     } catch(_) {}
   }
@@ -2440,7 +3369,7 @@ async function loadDisk(dir) {
 }
 
 function diskDel(n) {
-  if (disk.dir) disk.dir.removeEntry(sfn(n.name)+'.edna.txt').catch(()=>{});
+  if (disk.dir) disk.dir.removeEntry(sfn(n.name)+'.starnotebook.txt').catch(()=>{});
 }
 
 async function diskMove(existing) {
@@ -2451,7 +3380,7 @@ async function diskMove(existing) {
     notes = { ...existing };
     await saveDisk();
     await idbSaveHandle(dir);
-    localStorage.setItem('edna3_disk_mode', 'disk');
+    localStorage.setItem('starnotebook3_disk_mode', 'disk');
     localStorage.removeItem(SK_N);
     updateSB(); buildSetUI();
     toast('Moved to disk (' + Object.keys(notes).length + ' notes) — reloads will reconnect automatically', 'ok');
@@ -2465,7 +3394,7 @@ async function diskSwitch() {
     const dir = await window.showDirectoryPicker({ mode:'readwrite' });
     disk = { mode:'disk', dir };
     await idbSaveHandle(dir);
-    localStorage.setItem('edna3_disk_mode', 'disk');
+    localStorage.setItem('starnotebook3_disk_mode', 'disk');
     const loaded = await loadDisk(dir);
     if (!Object.keys(loaded).length) { const n=mkNote('scratch'); loaded[n.id]=n; }
     notes = loaded;
@@ -2487,7 +3416,7 @@ function diskBrowser() {
     onOk: () => {
       disk = { mode:'browser', dir:null };
       idbClearHandle();
-      localStorage.removeItem('edna3_disk_mode');
+      localStorage.removeItem('starnotebook3_disk_mode');
       try { const r=localStorage.getItem(SK_N); if(r) notes=JSON.parse(r); } catch(_) { notes={}; }
       if (!notes[curId]) curId = Object.keys(notes)[0] || null;
       updateSB(); buildSetUI(); renderNote();
@@ -2503,7 +3432,7 @@ function _diskBannerDismiss() {
   const banner = q('disk-banner');
   banner.style.display = 'none';
   idbClearHandle();
-  localStorage.removeItem('edna3_disk_mode');
+  localStorage.removeItem('starnotebook3_disk_mode');
   disk = { mode:'browser', dir:null };
   updateSB(); buildSetUI();
   toast('Staying on browser storage');
@@ -2524,7 +3453,7 @@ function showDiskBanner(handle) {
       const perm = await handle.requestPermission({ mode:'readwrite' });
       if (perm === 'granted') {
         disk = { mode:'disk', dir:handle };
-        localStorage.setItem('edna3_disk_mode', 'disk');
+        localStorage.setItem('starnotebook3_disk_mode', 'disk');
         const loaded = await loadDisk(handle);
         if (Object.keys(loaded).length) {
           notes = loaded;
@@ -2538,7 +3467,7 @@ function showDiskBanner(handle) {
         msg.textContent = 'Permission denied — using browser storage instead.';
         setTimeout(() => { banner.style.display='none'; }, 3000);
         await idbClearHandle();
-        localStorage.removeItem('edna3_disk_mode');
+        localStorage.removeItem('starnotebook3_disk_mode');
       }
     } catch(e) {
       msg.textContent = 'Could not reconnect: ' + e.message;
@@ -2565,7 +3494,7 @@ function showDiskBannerNoPick() {
       const dir = await window.showDirectoryPicker({ mode:'readwrite' });
       disk = { mode:'disk', dir };
       await idbSaveHandle(dir);
-      localStorage.setItem('edna3_disk_mode', 'disk');
+      localStorage.setItem('starnotebook3_disk_mode', 'disk');
       const loaded = await loadDisk(dir);
       if (Object.keys(loaded).length) {
         notes = loaded;
@@ -2599,9 +3528,20 @@ function toast(msg,type){
 // KEYBOARD
 // ════════════════════════════
 function initKB(){
+  window.addEventListener('beforeunload', () => {
+    if (svTimer) {
+      clearTimeout(svTimer);
+      if (pendingSaveNotes.size > 0) {
+        pendingSaveNotes.forEach(nid => saveNotes(nid));
+        pendingSaveNotes.clear();
+      } else {
+        saveNotes();
+      }
+    }
+  });
   document.addEventListener('keydown',e=>{
     const mod=e.ctrlKey||e.metaKey;
-    if(e.key==='Escape'){closePal();closeCtx();closeLM();closeSet();closeCatPop();return;}
+    if(e.key==='Escape'){closePal();closeCtx();closeLM();closeSet();closeCatPop();closeTaskModal();closeWorklogSettings();return;}
     if(mod&&e.key==='p'){e.preventDefault();openPal();return;}
     if(mod&&e.key==='n'){e.preventDefault();
       // create in current section if one is active, else unassigned
@@ -2645,6 +3585,7 @@ async function init(){
 
   document.documentElement.dataset.theme=cfg.theme;
   document.documentElement.dataset.font=cfg.font;
+  updateHljsTheme(cfg.theme);
   const rs=document.documentElement.style;
   rs.setProperty('--esz',cfg.sz+'px');
   rs.setProperty('--elh',String(cfg.lh));
@@ -2652,7 +3593,7 @@ async function init(){
   rs.setProperty('--ets',String(cfg.ts));
 
   // ── Restore disk directory handle from IndexedDB ──
-  const wasDiskMode = localStorage.getItem('edna3_disk_mode') === 'disk';
+  const wasDiskMode = localStorage.getItem('starnotebook3_disk_mode') === 'disk';
   const savedHandle = await idbLoadHandle();
   if (savedHandle) {
     try {
@@ -2672,7 +3613,7 @@ async function init(){
     } catch(_) {
       // Handle is stale or inaccessible — clear it
       await idbClearHandle();
-      localStorage.removeItem('edna3_disk_mode');
+      localStorage.removeItem('starnotebook3_disk_mode');
     }
   } else if (wasDiskMode) {
     // localStorage says we were in disk mode but handle is gone — show banner with a prompt to re-pick
@@ -2715,6 +3656,13 @@ async function init(){
     p1.nbId=nb.id; p1.secId=sec2.id; p1.pgId=null; p1.order=0;
     notes[p1.id]=p1;
 
+    const wl=createWorklogNote('Team Worklog');
+    wl.nbId=nb.id; wl.secId=sec2.id; wl.pgId=null; wl.order=1;
+    wl.blocks=[{id:mkBid(),type:'markdown',content:'## Current sprint\n\nReference tasks like T-1 inside normal notes to jump back into the worklog.'}];
+    createTask(wl,{title:'Finalize iPhone safe-area polish',priority:'high',status:'In Progress',dueDate:isoDate(new Date())});
+    createTask(wl,{title:'Verify reminder permissions in PWA',priority:'medium',status:'To Do'});
+    notes[wl.id]=wl;
+
     saveNotes(); saveNav();
     curId=w.id;
   }
@@ -2723,9 +3671,9 @@ async function init(){
 
   // restore nav visibility
   try {
-    const ns=JSON.parse(localStorage.getItem('edna3_nav')||'{}');
+    const ns=JSON.parse(localStorage.getItem('starnotebook3_nav')||'{}');
     if(ns.width) q('nav').style.width=ns.width;
-    if(ns.visible===false){ navVisible=true; toggleNav(); }
+    if(ns.visible===false) navVisible=false;
   } catch(_){}
 
   renderNote();
@@ -2733,6 +3681,13 @@ async function init(){
   initKB();
   initTabs();
   initNavResize();
+  syncMobileNav();
+  updateNotificationState();
+  startReminderScheduler();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(err=>console.error('SW register failed', err));
+  }
+  window.addEventListener('resize', syncMobileNav);
 
   // ── top bar ──
   q('btn-nav-toggle').addEventListener('click', toggleNav);
@@ -2752,6 +3707,7 @@ async function init(){
   q('sb-note').addEventListener('click',openPal);
   q('sb-ln').addEventListener('click',gToggleLn);
   q('sb-stor').addEventListener('click',openSet);
+  q('nav-backdrop').addEventListener('click',()=>{ navVisible=false; syncMobileNav(); });
 
   // ── nav sidebar ──
   q('btn-add-nb').addEventListener('click', ()=>{
@@ -2807,7 +3763,7 @@ async function init(){
     r.onload=ev=>{
       try{
         const d=JSON.parse(ev.target.result);let c=0;
-        Object.entries(d).forEach(([id,n])=>{if(n.name&&Array.isArray(n.blocks)){notes[id]=n;c++;}});
+        Object.entries(d).forEach(([id,n])=>{if(n.name&&Array.isArray(n.blocks)){notes[id]=ensureNoteShape(n);c++;}});
         saveNotes();renderNote();renderNav(q('nav-search').value);toast('Imported '+c+' notes','ok');
       } catch(_){toast('Invalid JSON','err');}
     };
@@ -2825,6 +3781,19 @@ async function init(){
       }
     });
   });
+
+  // ── task modal + worklog settings ──
+  q('task-modal-close').addEventListener('click',closeTaskModal);
+  q('task-cancel').addEventListener('click',closeTaskModal);
+  q('task-save').addEventListener('click',saveTaskModal);
+  q('task-delete').addEventListener('click',deleteTaskFromModal);
+  q('task-modal').addEventListener('click',e=>{ if(e.target===q('task-modal')) closeTaskModal(); });
+  q('task-title-mic').addEventListener('click',()=>startDictation(q('task-title'), q('task-title-mic')));
+  q('task-desc-mic').addEventListener('click',()=>startDictation(q('task-desc'), q('task-desc-mic')));
+  q('worklog-settings-close').addEventListener('click',closeWorklogSettings);
+  q('worklog-settings-done').addEventListener('click',()=>{ closeWorklogSettings(); renderNote(); });
+  q('worklog-settings').addEventListener('click',e=>{ if(e.target===q('worklog-settings')) closeWorklogSettings(); });
+  q('notification-enable').addEventListener('click',requestNotificationAccess);
 
   // ── lang menu ──
   q('ls').addEventListener('input',e=>buildLL(e.target.value));
